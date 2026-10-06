@@ -129,34 +129,35 @@
 </div>
 
 <!-- Tabs -->
+{% include "_a4_onizleme.html" %}
 {% set icerik_once = doc.icerik_json and doc.dokuman_tipi in ('Prosedür', 'İş Akışı') %}
+{% set icerik_etiket = '🔀 İş Akışı' if doc.dokuman_tipi == 'İş Akışı' else ('📘 Prosedür' if doc.dokuman_tipi == 'Prosedür' else '📝 İçerik') %}
 <div class="tabs" data-tab-group="doc-detail">
     {% if icerik_once %}
-    <button class="tab-item active" data-tab="tab-icerik">{{ '🔀 Akış' if doc.dokuman_tipi == 'İş Akışı' else '📝 İçerik' }}</button>
+    <button class="tab-item active" data-tab="tab-icerik">{{ icerik_etiket }}</button>
     {% endif %}
     {% if doc.dosya_adi %}
-    <button class="tab-item {{ '' if icerik_once else 'active' }}" data-tab="tab-preview">👁️ {{ 'Dosya' if icerik_once else 'Önizleme' }}</button>
+    <button class="tab-item {{ '' if icerik_once else 'active' }}" data-tab="tab-preview">👁️ {{ 'Dosya önizleme' if icerik_once else 'Önizleme' }}</button>
     <button class="tab-item" data-tab="tab-info">📋 Bilgiler</button>
     {% else %}
     <button class="tab-item {{ '' if icerik_once else 'active' }}" data-tab="tab-info">📋 Bilgiler</button>
     {% endif %}
     {% if doc.icerik_json and not icerik_once %}
-    <button class="tab-item" data-tab="tab-icerik">📝 İçerik</button>
+    <button class="tab-item" data-tab="tab-icerik">{{ icerik_etiket }}</button>
     {% endif %}
-    <button class="tab-item" data-tab="tab-approval">✅ Onay Akışı</button>
-    <button class="tab-item" data-tab="tab-revisions">📜 Revizyon Geçmişi</button>
+    <button class="tab-item" data-tab="tab-approval">✅ Onay</button>
+    <button class="tab-item" data-tab="tab-revisions">📜 Revizyonlar</button>
     <button class="tab-item" data-tab="tab-distribution">📨 Dağıtım</button>
-    <button class="tab-item" data-tab="tab-standards">🛡️ Standartlar</button>
     <button class="tab-item" data-tab="tab-atif">🔗 Atıflar{% if atif_yapanlar or atiflari %} ({{ atif_yapanlar|length }} / {{ atiflari|length }}){% endif %}</button>
 </div>
 
 <div data-tab-content="doc-detail">
-    <!-- Tab: Preview -->
+    <!-- Tab: Önizleme (A4 sayfa görünümü) -->
     {% if doc.dosya_adi %}
     <div id="tab-preview" class="tab-content {{ '' if icerik_once else 'active' }}">
         <div class="section-card">
             <div class="section-header">
-                <span class="section-title">👁️ Doküman Önizleme — {{ doc.dosya_adi }}</span>
+                <span class="section-title">👁️ A4 Önizleme — {{ doc.dosya_adi }}</span>
                 <div class="d-flex gap-8">
                     <a href="{{ url_for('document_print', doc_id=doc.id) }}" class="btn btn-sm btn-primary">🖨️ Kontrollü kopya</a>
                     <a href="{{ url_for('document_download', doc_id=doc.id) }}" class="btn btn-sm btn-secondary">⬇️ İndir</a>
@@ -179,65 +180,86 @@
                 {% set ext = doc.dosya_adi.rsplit('.', 1)[-1]|lower if '.' in doc.dosya_adi else '' %}
 
                 {% if ext == 'pdf' or pdf_mod %}
-                <!-- PDF Önizleme: PDF.js canvas render (Office dosyaları PDF'e dönüştürülerek, antet ve sayfa düzeniyle) -->
-                <div class="preview-container issued-copy" id="pdf-preview-area" data-watermark="{{ copy_spec.label if copy_spec else 'KONTROLLÜ KOPYA' }}">
-                    <div class="preview-toolbar">
+                <!-- PDF: PDF.js canvas, beyaz sayfa olarak ortalanır; genişliğe sığdırılır (en fazla A4 genişliği), yakınlaştırılabilir -->
+                <div class="preview-container issued-copy a4-wrap" id="pdf-preview-area" data-watermark="{{ copy_spec.label if copy_spec else 'KONTROLLÜ KOPYA' }}">
+                    <div class="a4-bar">
                         {% if pdf_mod and ham_gorunum_var %}<a class="btn btn-sm btn-outline" href="?gorunum=ham#tab-preview" title="Excel: hücre / sayfa tablosu · Word: metin">{{ '▦ Tablo görünümü' if ext in ['xls', 'xlsx', 'csv'] else '¶ Metin görünümü' }}</a>{% endif %}
                         <button class="btn btn-sm btn-outline" id="pdf-prev" disabled>◀ Önceki</button>
                         <span class="preview-page-info">Sayfa <span id="pdf-page-num">1</span> / <span id="pdf-page-count">-</span></span>
                         <button class="btn btn-sm btn-outline" id="pdf-next">Sonraki ▶</button>
-                        <button class="btn btn-sm btn-outline" id="pdf-zoom-out">−</button>
-                        <span class="preview-page-info" id="pdf-zoom-label">100%</span>
-                        <button class="btn btn-sm btn-outline" id="pdf-zoom-in">+</button>
+                        <span class="sp"></span>
+                        <button class="btn btn-sm btn-outline" id="pdf-zoom-out" title="Küçült">−</button>
+                        <span class="a4-lbl preview-page-info" id="pdf-zoom-label">100%</span>
+                        <button class="btn btn-sm btn-outline" id="pdf-zoom-in" title="Büyüt">+</button>
+                        <button class="btn btn-sm btn-outline" id="pdf-zoom-fit" title="Sayfayı genişliğe sığdır">Sığdır</button>
                     </div>
-                    <div class="preview-canvas-wrapper" id="pdf-canvas-wrapper">
-                        <div class="preview-loading" id="pdf-loading">
+                    <div class="a4-stage a4-pdf" id="pdf-canvas-wrapper">
+                        <div class="preview-loading" id="pdf-loading" style="color:#e5e7eb;">
                             <div class="spinner"></div>
                             <span>{{ 'Belge hazırlanıyor… (ilk açılışta PDF\'e dönüştürülür, birkaç saniye sürebilir)' if pdf_mod else 'PDF yükleniyor...' }}</span>
                         </div>
-                        <canvas id="pdf-canvas"></canvas>
+                        <canvas id="pdf-canvas" style="display:none;margin:0 auto;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.35),0 8px 28px rgba(0,0,0,.35);"></canvas>
                     </div>
                 </div>
 
                 {% elif ext in ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp'] %}
-                <!-- Resim Önizleme -->
-                <div class="preview-container preview-image-container issued-copy" data-watermark="{{ copy_spec.label if copy_spec else 'KONTROLLÜ KOPYA' }}">
-                    <img src="{{ request.script_root }}/documents/{{ doc.id }}/preview" alt="{{ doc.baslik }}" class="preview-image">
+                <!-- Resim: A4 sayfa içinde ortalanır -->
+                <div class="preview-container issued-copy a4-wrap" data-watermark="{{ copy_spec.label if copy_spec else 'KONTROLLÜ KOPYA' }}">
+                    <div class="a4-bar" data-a4-bar>
+                        <span>A4 sayfa</span><span class="sp"></span>
+                        <button class="btn btn-sm btn-outline" data-a4-act="out" title="Küçült">−</button><span class="a4-lbl">100%</span><button class="btn btn-sm btn-outline" data-a4-act="in" title="Büyüt">+</button>
+                        <button class="btn btn-sm btn-outline" data-a4-act="fit">Sığdır</button>
+                    </div>
+                    <div class="a4-stage"><div class="a4-sheet a4-sheet--center"><img src="{{ request.script_root }}/documents/{{ doc.id }}/preview" alt="{{ doc.baslik }}"></div></div>
                 </div>
 
                 {% elif ext in ['xlsx', 'xls', 'csv'] %}
-                <!-- Excel/CSV Önizleme: SheetJS ile HTML tablo -->
-                <div class="preview-container issued-copy" id="excel-preview-area" data-watermark="{{ copy_spec.label if copy_spec else 'KONTROLLÜ KOPYA' }}">
-                    <div class="preview-toolbar" id="excel-toolbar" style="display: none;">
-                        <span class="preview-page-info">Sayfa:</span>
-                        <select id="excel-sheet-select" class="filter-select" style="min-width: 150px;"></select>
-                        <span class="preview-page-info" id="excel-info"></span>
+                <!-- Excel/CSV: SheetJS ile HTML tablo, A4 yatay sayfada -->
+                <div class="preview-container issued-copy a4-wrap" id="excel-preview-area" data-watermark="{{ copy_spec.label if copy_spec else 'KONTROLLÜ KOPYA' }}">
+                    <div class="a4-bar" data-a4-bar>
+                        <span id="excel-toolbar" style="display:none;align-items:center;gap:6px;">
+                            <span>Sayfa:</span>
+                            <select id="excel-sheet-select" class="filter-select" style="min-width: 150px;"></select>
+                            <span id="excel-info" class="text-muted"></span>
+                        </span>
+                        <span class="sp"></span>
+                        <button class="btn btn-sm btn-outline" data-a4-act="out" title="Küçült">−</button><span class="a4-lbl">100%</span><button class="btn btn-sm btn-outline" data-a4-act="in" title="Büyüt">+</button>
+                        <button class="btn btn-sm btn-outline" data-a4-act="fit">Sığdır</button>
                     </div>
-                    <div id="excel-loading" class="preview-loading-center">
-                        <div class="spinner"></div>
-                        <span>Excel dosyası yükleniyor...</span>
+                    <div class="a4-stage">
+                        <div class="a4-sheet a4-sheet--land">
+                            <div id="excel-loading" class="preview-loading-center" style="color:#555;"><div class="spinner"></div><span>Excel dosyası yükleniyor...</span></div>
+                            <div id="excel-table-container" class="preview-table-container" style="overflow:auto;width:100%;color:#111;"></div>
+                        </div>
                     </div>
-                    <div id="excel-table-container" class="preview-table-container" style="overflow: auto; max-height: 70vh; width: 100%; border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px;"></div>
                 </div>
 
                 {% elif ext in ['txt', 'json', 'xml', 'html', 'css', 'js', 'py', 'md', 'log', 'ini', 'cfg', 'yaml', 'yml'] %}
-                <!-- Metin Dosyası Önizleme: fetch ile çek ve pre'de göster -->
-                <div class="preview-container" id="text-preview-area">
-                    <div id="text-loading" class="preview-loading-center">
-                        <div class="spinner"></div>
-                        <span>Dosya yükleniyor...</span>
+                <!-- Metin: A4 sayfada -->
+                <div class="preview-container a4-wrap" id="text-preview-area">
+                    <div class="a4-bar" data-a4-bar>
+                        <span>A4 sayfa</span><span class="sp"></span>
+                        <button class="btn btn-sm btn-outline" data-a4-act="out" title="Küçült">−</button><span class="a4-lbl">100%</span><button class="btn btn-sm btn-outline" data-a4-act="in" title="Büyüt">+</button>
+                        <button class="btn btn-sm btn-outline" data-a4-act="fit">Sığdır</button>
                     </div>
-                    <pre id="text-content" class="preview-text-content" style="display: none;"></pre>
+                    <div class="a4-stage"><div class="a4-sheet">
+                        <div id="text-loading" class="preview-loading-center" style="color:#555;"><div class="spinner"></div><span>Dosya yükleniyor...</span></div>
+                        <pre id="text-content" class="preview-text-content" style="display:none;background:none;border:0;padding:0;"></pre>
+                    </div></div>
                 </div>
 
                 {% elif ext == 'docx' %}
-                <!-- DOCX Önizleme: Mammoth.js -->
-                <div class="preview-container issued-copy" id="docx-preview-area" style="overflow: auto; max-height: 70vh; width: 100%; padding: 30px; background: white; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
-                    <div id="docx-loading" class="preview-loading-center">
-                        <div class="spinner"></div>
-                        <span>Word dosyası yükleniyor...</span>
+                <!-- DOCX: Mammoth.js, A4 sayfada -->
+                <div class="preview-container issued-copy a4-wrap" id="docx-preview-area" data-watermark="{{ copy_spec.label if copy_spec else 'KONTROLLÜ KOPYA' }}">
+                    <div class="a4-bar" data-a4-bar>
+                        <span>A4 sayfa</span><span class="sp"></span>
+                        <button class="btn btn-sm btn-outline" data-a4-act="out" title="Küçült">−</button><span class="a4-lbl">100%</span><button class="btn btn-sm btn-outline" data-a4-act="in" title="Büyüt">+</button>
+                        <button class="btn btn-sm btn-outline" data-a4-act="fit">Sığdır</button>
                     </div>
-                    <div id="docx-content-container" style="color: black; text-align: left; line-height: 1.6;"></div>
+                    <div class="a4-stage"><div class="a4-sheet">
+                        <div id="docx-loading" class="preview-loading-center" style="color:#555;"><div class="spinner"></div><span>Word dosyası yükleniyor...</span></div>
+                        <div id="docx-content-container" style="color:#111;text-align:left;line-height:1.55;font-size:13px;"></div>
+                    </div></div>
                 </div>
 
                 {% elif ext in ['doc', 'pptx', 'ppt'] %}
@@ -346,6 +368,18 @@
                         <span class="info-value">{{ doc.olusturma_tarihi.strftime('%d.%m.%Y %H:%M') if doc.olusturma_tarihi else '-' }}</span>
                     </div>
                 </div>
+                <h4 style="font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);margin:20px 0 8px;">İlgili standartlar</h4>
+                {% if doc.ilgili_standartlar %}
+                <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                    {% for std in doc.ilgili_standartlar.split(',') %}{% set std = std.strip() %}
+                    {% if 'IATF' in std %}<span class="std-badge iatf" style="font-size:12px;padding:4px 10px;">{{ std }}</span>
+                    {% elif '14001' in std %}<span class="std-badge iso14001" style="font-size:12px;padding:4px 10px;">{{ std }}</span>
+                    {% elif '45001' in std %}<span class="std-badge iso45001" style="font-size:12px;padding:4px 10px;">{{ std }}</span>
+                    {% elif '27001' in std %}<span class="std-badge iso27001" style="font-size:12px;padding:4px 10px;">{{ std }}</span>
+                    {% else %}<span>{{ std }}</span>{% endif %}
+                    {% endfor %}
+                </div>
+                {% else %}<p class="text-muted" style="font-size:13px;">İlgili standart belirtilmemiş.</p>{% endif %}
             </div>
         </div>
     </div>
@@ -359,57 +393,120 @@
     <div id="tab-icerik" class="tab-content {{ 'active' if icerik_once else '' }}">
         {% if doc.dokuman_tipi == 'İş Akışı' and icerik.get('akis') %}
         {% set bolumler = icerik.get('akis')|fromjson %}
+        {% set ak = namespace(adim=0, roller=[]) %}
+        {% for b in bolumler %}{% for s in b.adimlar %}
+            {% set ak.adim = ak.adim + 1 %}
+            {% for r in (s.sorumlu or '').split('\n') %}{% set r = r.strip() %}{% if r and r != '—' and r not in ak.roller %}{% set _ = ak.roller.append(r) %}{% endif %}{% endfor %}
+        {% endfor %}{% endfor %}
+        <style>
+            .ak-ozet{display:grid;gap:10px;margin-bottom:14px}
+            .ak-ozet .amac{font-size:13px;line-height:1.55;color:var(--text-secondary)}
+            .ak-sayac{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:12px;color:var(--text-muted)}
+            .ak-sayac b{color:var(--text-primary);font-size:14px;margin-right:3px}
+            .ak-chips{display:flex;flex-wrap:wrap;gap:5px}
+            .ak-chip{font-size:11.5px;padding:2px 9px;border-radius:999px;background:var(--accent-glow);color:var(--text-accent);border:1px solid var(--border-active);white-space:nowrap}
+            .ak-leg{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:11px;color:var(--text-muted);align-items:center}
+            .ak-leg span{display:inline-flex;align-items:center;gap:5px}
+            .ak-bolum{border:1px solid var(--border-color);border-radius:10px;margin-bottom:12px;background:var(--bg-card)}
+            .ak-bolum>summary{text-align:left;cursor:pointer;list-style:none;padding:10px 14px;font-weight:700;font-size:13.5px;display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+            .ak-bolum>summary::-webkit-details-marker{display:none}
+            .ak-bolum>summary small{font-weight:400;color:var(--text-muted);white-space:nowrap}
+            .ak-bolum>summary::before{content:'▾';color:var(--text-muted);margin-right:2px}
+            .ak-bolum:not([open])>summary::before{content:'▸'}
+            .ak-list{list-style:none;margin:0;padding:6px 14px 14px}
+            .ak-step{display:grid;grid-template-columns:40px minmax(0,1fr);gap:12px;position:relative;padding-bottom:12px}
+            .ak-step:not(:last-child)::before{content:'';position:absolute;left:19px;top:38px;bottom:-2px;width:2px;background:var(--border-hover)}
+            .ak-step:last-child{padding-bottom:0}
+            .ak-rail{display:flex;justify-content:center;padding-top:4px}
+            .ak-no{width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;background:var(--bg-secondary);border:2px solid var(--text-muted);color:var(--text-primary);border-radius:50%;z-index:1}
+            .ak-term .ak-no{border-radius:10px;border-color:var(--color-success,#22c55e);background:rgba(34,197,94,.12)}
+            .ak-dec .ak-no{border-radius:4px;transform:rotate(45deg);border-color:var(--color-warning);background:var(--color-warning-bg);width:26px;height:26px;margin-top:3px}
+            .ak-dec .ak-no span{transform:rotate(-45deg);display:block}
+            .ak-doc .ak-no{border-radius:4px 4px 12px 4px;border-color:var(--accent-primary)}
+            .ak-pre .ak-no{border-radius:4px;border-style:double;border-width:4px;border-color:var(--color-warning)}
+            .ak-card{border:1px solid var(--border-color);border-radius:8px;background:var(--bg-secondary);padding:10px 12px;min-width:0}
+            .ak-dec .ak-card{border-left:3px solid var(--color-warning)}
+            .ak-term .ak-card{border-left:3px solid var(--color-success,#22c55e)}
+            .ak-head{display:flex;justify-content:space-between;gap:8px;font-size:10.5px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px}
+            .ak-baslik{font-size:13.5px;font-weight:600;line-height:1.35;overflow-wrap:anywhere}
+            .ak-faal{font-size:12.5px;color:var(--text-secondary);line-height:1.55;margin-top:5px;white-space:pre-line}
+            .ak-meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px 16px;margin-top:8px;padding-top:8px;border-top:1px dashed var(--border-color)}
+            .ak-meta h5{margin:0 0 3px;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-muted)}
+            .ak-meta div{font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+            .ak-yol{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+            .ak-yol span{font-size:11.5px;font-weight:600;padding:2px 9px;border-radius:6px;background:var(--bg-glass);border:1px solid var(--border-hover)}
+            .ak-yol .ok{color:var(--color-success,#22c55e)}
+            .ak-yol .red{color:var(--color-danger,#ef4444)}
+            .ak-yol .geri{color:var(--text-secondary)}
+            .ak-not{font-size:13px;line-height:1.6;white-space:pre-line;color:var(--text-secondary)}
+            .doc-code-link{font-weight:600;text-decoration:underline dotted;}
+        </style>
         <div class="section-card mb-16">
             <div class="section-header">
                 <span class="section-title">🔀 {{ doc.dokuman_no }} · {{ doc.baslik }}</span>
                 {% if icerik.get('ilgili_prosedur') %}<span class="text-muted" style="font-size:12px;">İlgili prosedür: {{ icerik.get('ilgili_prosedur')|kodlari_bagla }}</span>{% endif %}
             </div>
             <div class="section-body">
-                {% if icerik.get('amac') %}<p class="text-muted" style="font-size:13px;margin-bottom:14px;"><em>Amaç: {{ icerik.get('amac') }}</em></p>{% endif %}
+                <div class="ak-ozet">
+                    {% if icerik.get('amac') %}<div class="amac"><strong style="color:var(--text-primary);">Amaç.</strong> {{ icerik.get('amac') }}</div>{% endif %}
+                    <div class="ak-sayac"><span><b>{{ bolumler|length }}</b>bölüm</span><span><b>{{ ak.adim }}</b>adım</span><span><b>{{ ak.roller|length }}</b>sorumlu rol</span></div>
+                    {% if ak.roller %}<div class="ak-chips">{% for r in ak.roller %}<span class="ak-chip">{{ r }}</span>{% endfor %}</div>{% endif %}
+                    <div class="ak-leg"><span>⬭ Başlangıç / bitiş</span><span>▭ İşlem</span><span>◇ Karar</span><span>▱ Doküman / kayıt</span><span>▥ Hazır işlem (alt akış)</span></div>
+                </div>
+
                 {% for b in bolumler %}
-                <h3 class="akis-bolum">{{ b.baslik }}</h3>
-                <table class="data-table akis-tablo">
-                    <thead><tr><th style="width:56px;">Md.</th><th style="width:230px;">Akış</th><th>Faaliyet</th><th style="width:170px;">Sorumlu</th><th style="width:210px;">Doküman / Talimat</th><th style="width:190px;">Kayıt</th></tr></thead>
-                    <tbody>
+                <details class="ak-bolum" open>
+                    <summary><span>{{ b.baslik }}</span><small>{{ b.adimlar|length }} adım</small></summary>
+                    <ol class="ak-list">
                     {% for s in b.adimlar %}
-                    <tr>
-                        <td class="text-muted">{{ s.md }}</td>
-                        <td>
-                            <div class="akis-sekil akis-{{ s.sekil or 'proc' }}">{{ s.metin }}</div>
-                            {% if not loop.last %}<div class="akis-ok">{% if s.sekil == 'dec' and s.asagi_etiket != '' %}<span>{{ s.asagi_etiket or 'O.K.' }}</span>{% endif %}↓</div>{% endif %}
-                            {% if s.dal %}<div class="akis-dal">→ {{ s.dal.etiket or 'RED' }}: {{ s.dal.hedef }}</div>{% endif %}
-                            {% if s.geri %}<div class="akis-dal geri">↺ {{ s.geri.etiket or 'Hayır' }}: {{ s.geri.adim or 1 }} adım geri</div>{% endif %}
-                        </td>
-                        <td style="white-space:pre-line;">{{ s.faaliyet|kodlari_bagla }}</td>
-                        <td style="white-space:pre-line;font-size:12px;">{{ s.sorumlu }}</td>
-                        <td style="white-space:pre-line;font-size:12px;">{{ s.dokuman|kodlari_bagla }}</td>
-                        <td style="white-space:pre-line;font-size:12px;">{{ s.kayit|kodlari_bagla }}</td>
-                    </tr>
+                    {% set sk = s.sekil or 'proc' %}
+                    <li class="ak-step ak-{{ sk }}">
+                        <div class="ak-rail"><span class="ak-no"><span>{{ loop.index }}</span></span></div>
+                        <div class="ak-card">
+                            <div class="ak-head">
+                                <span>{{ {'term':'Başlangıç / bitiş','proc':'İşlem','dec':'Karar','doc':'Doküman / kayıt','pre':'Hazır işlem'}.get(sk, 'İşlem') }}{% if false %}{% endif %}</span>
+                                {% if s.md %}<span>Md. {{ s.md }}</span>{% endif %}
+                            </div>
+                            <div class="ak-baslik">{{ s.metin }}</div>
+                            {% if s.faaliyet and s.faaliyet.strip() not in ('', '—') %}<div class="ak-faal">{{ s.faaliyet|kodlari_bagla }}</div>{% endif %}
+                            {% set rol_l = (s.sorumlu or '').split('\n')|map('trim')|reject('in', ['', '—'])|list %}
+                            {% set dok_l = (s.dokuman or '').split('\n')|map('trim')|reject('in', ['', '—'])|list %}
+                            {% set kay_l = (s.kayit or '').split('\n')|map('trim')|reject('in', ['', '—'])|list %}
+                            {% if rol_l or dok_l or kay_l %}
+                            <div class="ak-meta">
+                                {% if rol_l %}<div><h5>Sorumlu</h5><div class="ak-chips">{% for r in rol_l %}<span class="ak-chip">{{ r }}</span>{% endfor %}</div></div>{% endif %}
+                                {% if dok_l %}<div><h5>Doküman / talimat</h5>{% for x in dok_l %}<div>{{ x|kodlari_bagla }}</div>{% endfor %}</div>{% endif %}
+                                {% if kay_l %}<div><h5>Kayıt</h5>{% for x in kay_l %}<div>{{ x|kodlari_bagla }}</div>{% endfor %}</div>{% endif %}
+                            </div>
+                            {% endif %}
+                            {% if (sk == 'dec' and s.asagi_etiket != '' and not loop.last) or s.dal or s.geri %}
+                            <div class="ak-yol">
+                                {% if sk == 'dec' and s.asagi_etiket != '' and not loop.last %}<span class="ok">{{ s.asagi_etiket or 'O.K.' }} → sonraki adım ({{ loop.index + 1 }})</span>{% endif %}
+                                {% if s.dal %}<span class="red">{{ s.dal.etiket or 'RED' }} → {{ s.dal.hedef }}</span>{% endif %}
+                                {% if s.geri %}{% set hedef = loop.index - (s.geri.adim or 1) %}<span class="geri">↺ {{ s.geri.etiket or 'Hayır' }} → {{ (s.geri.adim or 1) }} adım geri{% if hedef >= 1 %} (adım {{ hedef }}){% endif %}</span>{% endif %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </li>
                     {% endfor %}
-                    </tbody>
-                </table>
+                    </ol>
+                </details>
                 {% endfor %}
+
                 {% if icerik.get('notlar') %}
-                <h3 class="akis-bolum">Notlar</h3>
-                <div style="white-space:pre-line;font-size:13px;line-height:1.6;">{{ icerik.get('notlar')|kodlari_bagla }}</div>
+                <h3 style="font-size:13.5px;font-weight:700;margin:16px 0 6px;">Notlar</h3>
+                <div class="ak-not">{{ icerik.get('notlar')|kodlari_bagla }}</div>
                 {% endif %}
             </div>
         </div>
-        <style>
-            .akis-bolum{font-size:14px;font-weight:700;margin:18px 0 8px;padding:6px 10px;background:var(--bg-tertiary,#eef2f8);border-radius:6px;}
-            .akis-tablo td{vertical-align:middle;}
-            .akis-sekil{margin:0 auto;max-width:210px;padding:8px 10px;text-align:center;font-size:12px;border:1.5px solid #555;background:#fff;color:#111;}
-            .akis-term{border-radius:999px;background:#d9ead3;}
-            .akis-proc{border-radius:3px;}
-            .akis-dec{background:#ffe6b0;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);padding:18px 26px;border:none;}
-            .akis-doc{border-radius:3px 3px 14px 3px;background:#f2f2f2;}
-            .akis-pre{background:#fff2cc;border-left:5px double #555;border-right:5px double #555;}
-            .akis-ok{text-align:center;color:#666;font-size:14px;line-height:16px;}
-            .akis-ok span{font-size:10px;font-weight:700;margin-right:4px;}
-            .akis-dal{text-align:center;color:#c0392b;font-size:11px;font-weight:700;margin-top:3px;}
-            .akis-dal.geri{color:#555;}
-            .doc-code-link{font-weight:600;text-decoration:underline dotted;}
-        </style>
+        {% elif doc.dokuman_tipi == 'İş Akışı' %}
+        <div class="section-card"><div class="section-body">
+            <div class="empty-state" style="padding:30px;">
+                <div class="empty-icon">🔀</div>
+                <h3>Bu iş akışının adımları henüz tanımlanmamış</h3>
+                <p class="text-muted">Akış çizimi için dosya önizlemesine bakın{% if esli_dokuman(doc, 'P') %} ya da ilgili prosedürü açın{% endif %}.</p>
+            </div>
+        </div></div>
         {% elif doc.dokuman_tipi == 'Prosedür' %}
         <div class="procedure-sheet section-card mb-16">
             <div class="procedure-antet" aria-label="{{ _('Doküman anteti') }}">
@@ -497,11 +594,30 @@
     </div>
     {% endif %}
 
-    <!-- Tab: Approval Flow -->
+    <!-- Tab: Onay (hazırlama → kontrol → onay) -->
     <div id="tab-approval" class="tab-content">
+        <style>
+            .ap-liste{list-style:none;margin:0;padding:0}
+            .ap-adim{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:12px;align-items:start;position:relative;padding-bottom:14px}
+            .ap-adim:not(:last-child)::before{content:'';position:absolute;left:19px;top:38px;bottom:-2px;width:2px;background:var(--border-hover)}
+            .ap-adim.tamam:not(:last-child)::before{background:var(--color-success)}
+            .ap-no{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;border:2px solid var(--border-hover);background:var(--bg-secondary);color:var(--text-muted);z-index:1}
+            .ap-adim.tamam .ap-no{background:var(--color-success);border-color:var(--color-success);color:#fff}
+            .ap-adim.aktif .ap-no{background:var(--accent-primary);border-color:var(--accent-primary);color:#fff}
+            .ap-adim.red .ap-no{background:var(--color-danger);border-color:var(--color-danger);color:#fff}
+            .ap-ad{font-weight:600;font-size:14px}
+            .ap-rol{font-size:12px;color:var(--text-muted)}
+            .ap-kisi{font-size:13px;margin-top:2px}
+            .ap-not{font-size:12px;color:var(--text-muted);margin-top:2px}
+            .ap-durum{font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;border:1px solid var(--border-hover);color:var(--text-muted);white-space:nowrap}
+            .ap-adim.tamam .ap-durum{color:var(--color-success);border-color:var(--color-success)}
+            .ap-adim.aktif .ap-durum{color:var(--text-accent);border-color:var(--border-active)}
+            .ap-adim.red .ap-durum{color:var(--color-danger);border-color:var(--color-danger)}
+            @media (max-width:560px){.ap-adim{grid-template-columns:40px minmax(0,1fr)}.ap-durum{grid-column:2;justify-self:start}}
+        </style>
         <div class="section-card">
             <div class="section-header">
-                <span class="section-title">✅ Onay İş Akışı</span>
+                <span class="section-title">✅ Onay Süreci — Hazırlama → Kontrol → Onay</span>
                 {% if session.get('rol') in ['Admin', 'Doküman Kontrol'] and doc.durum in ['Taslak', 'İncelemede'] %}
                 <form method="POST" action="{{ request.script_root }}/documents/{{ doc.id }}/submit-approval" style="display:inline;">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -510,54 +626,52 @@
                 {% endif %}
             </div>
             <div class="section-body">
-                <!-- Visual Flow -->
-                <div class="approval-flow">
-                    {% set steps = ['Hazırlama', 'Kontrol', 'Onay'] %}
-                    {% for step_name in steps %}
-                    {% set step_approval = doc.approvals|selectattr('onay_adimi', 'equalto', step_name)|list|last %}
-                    <div class="approval-step {% if step_approval and step_approval.durum == 'Onaylandı' %}completed{% elif step_approval and step_approval.durum == 'Reddedildi' %}rejected{% elif step_approval and step_approval.durum == 'Bekliyor' %}active{% endif %}">
-                        <div class="approval-circle">
-                            {% if step_approval and step_approval.durum == 'Onaylandı' %}✓
-                            {% elif step_approval and step_approval.durum == 'Reddedildi' %}✕
-                            {% elif step_approval and step_approval.durum == 'Bekliyor' %}⏳
-                            {% else %}{{ loop.index }}{% endif %}
+                <p class="text-muted" style="font-size:13px;margin-bottom:16px;">
+                    Doküman durumu: <span class="status-badge {{ doc.durum|slug }}">{{ doc.durum|enum }}</span>
+                    {% if doc.durum == 'Taslak' %}· Taslak hazırlanıyor; onaya gönderildiğinde kontrol ve onay adımları başlar.
+                    {% elif doc.durum == 'İncelemede' %}· Onay adımları işlemde.
+                    {% elif doc.durum == 'Onaylı' %}· Yürürlükte{% if doc.yururluk_tarihi %} ({{ doc.yururluk_tarihi.strftime('%d.%m.%Y') }}){% endif %}.{% endif %}
+                </p>
+                <ol class="ap-liste">
+                    {% set adimlar = [('Hazırlama', 'Hazırlayan', doc.hazirlayan), ('Kontrol', 'Kontrol eden', doc.kontrol_eden), ('Onay', 'Onaylayan', doc.onaylayan)] %}
+                    {% for ad, rol, atanan in adimlar %}
+                    {% set kayit = doc.approvals|selectattr('onay_adimi', 'equalto', ad)|list|last %}
+                    {% if kayit and kayit.durum == 'Onaylandı' %}{% set sinif, etiket, simge = 'tamam', 'Onaylandı', '✓' %}
+                    {% elif kayit and kayit.durum == 'Reddedildi' %}{% set sinif, etiket, simge = 'red', 'Reddedildi', '✕' %}
+                    {% elif kayit and kayit.durum == 'Bekliyor' %}{% set sinif, etiket, simge = 'aktif', 'Bekliyor', loop.index %}
+                    {% elif doc.durum == 'Onaylı' %}{% set sinif, etiket, simge = 'tamam', 'Tamamlandı', '✓' %}
+                    {% elif doc.durum in ['Eskimiş', 'İptal'] %}{% set sinif, etiket, simge = '', '—', loop.index %}
+                    {% elif ad == 'Hazırlama' and doc.durum == 'Taslak' %}{% set sinif, etiket, simge = 'aktif', 'Devam ediyor', loop.index %}
+                    {% else %}{% set sinif, etiket, simge = '', 'Başlamadı', loop.index %}{% endif %}
+                    {% set kisi = (kayit.kullanici if kayit and kayit.kullanici else atanan) %}
+                    <li class="ap-adim {{ sinif }}">
+                        <span class="ap-no">{{ simge }}</span>
+                        <div>
+                            <div class="ap-ad">{{ ad }}</div>
+                            <div class="ap-rol">{{ rol }}</div>
+                            <div class="ap-kisi">{% if kisi %}{{ kisi.ad_soyad }}{% if kisi.unvan %} <span class="text-muted">· {{ kisi.unvan }}</span>{% endif %}{% else %}<span class="text-muted">Atanmamış</span>{% endif %}</div>
+                            {% if kayit and kayit.tarih %}<div class="ap-not">{{ kayit.tarih.strftime('%d.%m.%Y %H:%M') }}{% if kayit.aciklama %} · {{ kayit.aciklama }}{% endif %}</div>
+                            {% elif doc.durum == 'Onaylı' and not kayit %}<div class="ap-not">DYS içinde onay kaydı bulunmuyor (doküman yürürlükte olarak aktarıldı).</div>{% endif %}
                         </div>
-                        <div class="approval-label">{{ step_name }}</div>
-                        <div class="approval-user">
-                            {% if step_approval and step_approval.kullanici %}
-                            {{ step_approval.kullanici.ad_soyad }}
-                            {% else %}—{% endif %}
-                        </div>
-                    </div>
+                        <span class="ap-durum">{{ etiket }}</span>
+                    </li>
                     {% endfor %}
-                </div>
+                </ol>
 
-                <!-- Approval History Table -->
                 {% if doc.approvals %}
-                <div class="data-table-wrapper mt-24">
+                <h4 style="font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);margin:18px 0 8px;">Onay geçmişi</h4>
+                <div class="data-table-wrapper">
                     <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Adım</th>
-                                <th>Kişi</th>
-                                <th>Durum</th>
-                                <th>Açıklama</th>
-                                <th>Tarih</th>
-                            </tr>
-                        </thead>
+                        <thead><tr><th>Adım</th><th>Kişi</th><th>Durum</th><th>Açıklama</th><th>Tarih</th></tr></thead>
                         <tbody>
                             {% for approval in doc.approvals|sort(attribute='tarih', reverse=True) %}
                             <tr>
                                 <td><strong>{{ approval.onay_adimi }}</strong></td>
                                 <td>{{ approval.kullanici.ad_soyad if approval.kullanici else '-' }}</td>
                                 <td>
-                                    {% if approval.durum == 'Onaylandı' %}
-                                    <span class="status-badge onayli">Onaylandı</span>
-                                    {% elif approval.durum == 'Reddedildi' %}
-                                    <span class="status-badge iptal">Reddedildi</span>
-                                    {% else %}
-                                    <span class="status-badge incelemede">Bekliyor</span>
-                                    {% endif %}
+                                    {% if approval.durum == 'Onaylandı' %}<span class="status-badge onayli">Onaylandı</span>
+                                    {% elif approval.durum == 'Reddedildi' %}<span class="status-badge iptal">Reddedildi</span>
+                                    {% else %}<span class="status-badge incelemede">Bekliyor</span>{% endif %}
                                 </td>
                                 <td class="text-muted">{{ approval.aciklama or '-' }}</td>
                                 <td class="text-muted">{{ approval.tarih.strftime('%d.%m.%Y %H:%M') if approval.tarih else '-' }}</td>
@@ -687,33 +801,6 @@
             </div>
         </div>
     </div>
-
-    <!-- Tab: Standards -->
-    <div id="tab-standards" class="tab-content">
-        <div class="section-card">
-            <div class="section-header">
-                <span class="section-title">🛡️ İlgili Standartlar</span>
-            </div>
-            <div class="section-body">
-                {% if doc.ilgili_standartlar %}
-                <div class="info-grid">
-                    {% for std in doc.ilgili_standartlar.split(',') %}
-                    <div style="padding: 12px 16px; background: var(--bg-glass); border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
-                        {% set std = std.strip() %}
-                        {% if 'IATF' in std %}<span class="std-badge iatf" style="font-size: 12px; padding: 4px 10px;">{{ std }}</span>
-                        {% elif '14001' in std %}<span class="std-badge iso14001" style="font-size: 12px; padding: 4px 10px;">{{ std }}</span>
-                        {% elif '45001' in std %}<span class="std-badge iso45001" style="font-size: 12px; padding: 4px 10px;">{{ std }}</span>
-                        {% elif '27001' in std %}<span class="std-badge iso27001" style="font-size: 12px; padding: 4px 10px;">{{ std }}</span>
-                        {% else %}<span>{{ std }}</span>{% endif %}
-                    </div>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <p class="text-muted">İlgili standart belirtilmemiş.</p>
-                {% endif %}
-            </div>
-        </div>
-    </div>
 </div>
 
 <!-- Distribution Modal -->
@@ -786,25 +873,33 @@ window.DYS_PREVIEW_FAIL = function(el, msg) {
 (function() {
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-    let pdfDoc = null;
-    let pageNum = 1;
-    let scale = 1.5;
+    let pdfDoc = null, pageNum = 1, zoomF = 1, task = null, rt = null;
     const canvas = document.getElementById('pdf-canvas');
     const ctx = canvas.getContext('2d');
     const loading = document.getElementById('pdf-loading');
+    const stage = document.getElementById('pdf-canvas-wrapper');
+    const A4_PX = 794;   // 210 mm @ 96 dpi: bir sayfa en fazla A4 genişliğinde (yakınlaştırma hariç) gösterilir
 
+    function cssWidth() {
+        const avail = (stage.clientWidth || A4_PX + 32) - 32;
+        return Math.max(240, Math.min(avail, A4_PX) * zoomF);
+    }
     function renderPage(num) {
+        if (!pdfDoc) return;
         pdfDoc.getPage(num).then(function(page) {
-            const viewport = page.getViewport({ scale: scale });
-            canvas.height = viewport.height;
-            canvas.width = viewport.width;
-            const renderContext = { canvasContext: ctx, viewport: viewport };
-            page.render(renderContext);
+            const w = cssWidth(), dpr = window.devicePixelRatio || 1;
+            const vp = page.getViewport({ scale: w / page.getViewport({ scale: 1 }).width * dpr });
+            if (task) { try { task.cancel(); } catch (e) {} }
+            canvas.width = vp.width; canvas.height = vp.height;
+            canvas.style.width = w + 'px'; canvas.style.height = (vp.height / dpr) + 'px';
+            task = page.render({ canvasContext: ctx, viewport: vp });
+            task.promise.catch(function() {});
             document.getElementById('pdf-page-num').textContent = num;
             document.getElementById('pdf-prev').disabled = (num <= 1);
             document.getElementById('pdf-next').disabled = (num >= pdfDoc.numPages);
         });
     }
+    function zoomGoster() { document.getElementById('pdf-zoom-label').textContent = Math.round(zoomF * 100) + '%'; }
 
     pdfjsLib.getDocument({ url: window.DYS_PREVIEW_URL, withCredentials: true }).promise.then(function(pdf) {
         pdfDoc = pdf;
@@ -818,22 +913,13 @@ window.DYS_PREVIEW_FAIL = function(el, msg) {
         window.DYS_PREVIEW_FAIL(loading, 'PDF yüklenemedi: ' + err.message);
     });
 
-    document.getElementById('pdf-prev').addEventListener('click', function() {
-        if (pageNum > 1) { pageNum--; renderPage(pageNum); }
-    });
-    document.getElementById('pdf-next').addEventListener('click', function() {
-        if (pdfDoc && pageNum < pdfDoc.numPages) { pageNum++; renderPage(pageNum); }
-    });
-    document.getElementById('pdf-zoom-in').addEventListener('click', function() {
-        scale += 0.25;
-        document.getElementById('pdf-zoom-label').textContent = Math.round(scale / 1.5 * 100) + '%';
-        renderPage(pageNum);
-    });
-    document.getElementById('pdf-zoom-out').addEventListener('click', function() {
-        if (scale > 0.5) { scale -= 0.25; }
-        document.getElementById('pdf-zoom-label').textContent = Math.round(scale / 1.5 * 100) + '%';
-        renderPage(pageNum);
-    });
+    document.getElementById('pdf-prev').addEventListener('click', function() { if (pageNum > 1) { pageNum--; renderPage(pageNum); stage.scrollTop = 0; } });
+    document.getElementById('pdf-next').addEventListener('click', function() { if (pdfDoc && pageNum < pdfDoc.numPages) { pageNum++; renderPage(pageNum); stage.scrollTop = 0; } });
+    document.getElementById('pdf-zoom-in').addEventListener('click', function() { zoomF = Math.min(2.5, zoomF + 0.15); zoomGoster(); renderPage(pageNum); });
+    document.getElementById('pdf-zoom-out').addEventListener('click', function() { zoomF = Math.max(0.4, zoomF - 0.15); zoomGoster(); renderPage(pageNum); });
+    document.getElementById('pdf-zoom-fit').addEventListener('click', function() { zoomF = 1; zoomGoster(); renderPage(pageNum); });
+    // Sekme açılınca / pencere boyutu değişince sayfayı yeniden sığdır
+    if (window.ResizeObserver) new ResizeObserver(function() { clearTimeout(rt); rt = setTimeout(function() { renderPage(pageNum); }, 120); }).observe(stage);
 })();
 </script>
 
@@ -859,7 +945,11 @@ window.DYS_PREVIEW_FAIL = function(el, msg) {
                 const container = document.getElementById('excel-table-container');
                 container.innerHTML = html;
                 const table = container.querySelector('table');
-                if (table) table.classList.add('data-table', 'excel-rendered-table');
+                if (table) {
+                    table.classList.add('excel-rendered-table');
+                    table.style.borderCollapse = 'collapse'; table.style.fontSize = '11px'; table.style.color = '#111'; table.style.background = '#fff';
+                    table.querySelectorAll('td, th').forEach(function(c) { c.style.border = '1px solid #cbd5e1'; c.style.padding = '3px 6px'; c.style.background = '#fff'; c.style.color = '#111'; });
+                }
                 const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
                 document.getElementById('excel-info').textContent =
                     (range.e.r - range.s.r + 1) + ' satır × ' + (range.e.c - range.s.c + 1) + ' sütun';
@@ -923,7 +1013,7 @@ window.DYS_PREVIEW_FAIL = function(el, msg) {
                 t.style.marginBottom = '1rem';
                 t.querySelectorAll('td, th').forEach(function(cell) {
                     cell.style.border = '1px solid #ccc';
-                    cell.style.padding = '8px';
+                    cell.style.padding = '6px';
                 });
             });
         })

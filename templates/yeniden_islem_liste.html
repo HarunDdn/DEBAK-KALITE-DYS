@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Yeniden İşlem Takip{% endblock %}
+{% block breadcrumb %}<span class="separator">›</span><span>Yeniden İşlem</span>{% endblock %}
+{% block content %}
+<style>.yi-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px;}.yi-c{border:1px solid var(--border);border-radius:10px;padding:10px 14px;background:var(--bg-secondary);border-left:5px solid var(--color-primary);}
+.yi-c b{display:block;font-size:22px;}.yi-c span{font-size:12px;color:var(--text-muted);}.yi-d{display:inline-block;font-size:11px;font-weight:800;padding:2px 9px;border-radius:10px;white-space:nowrap;}
+.d-Açık{background:#fde2e2;color:#b91c1c;}.d-Devam{background:#fff1c2;color:#92600a;}.d-Tamamlandı{background:#d9f2e0;color:#166534;}.yi-t td{vertical-align:top;font-size:13px;}.yi-t small{color:var(--text-muted);}</style>
+<div class="mb-16 d-flex align-center justify-between" style="flex-wrap:wrap;gap:10px;">
+  <div><h2 style="font-size:20px;font-weight:700;">♻️ Yeniden İşlem Takip</h2>
+    <p class="text-muted" style="font-size:13px;">Uygunsuz / karantinaya alınan ürünün yeniden işlemi: neden, yapılan işlem, sonuç (sağlam / hatalı) ve maliyet. Eski D06 F06 listesinin yerine.</p></div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;"><a href="{{ url_for('yeniden_islem_rapor') }}" class="btn btn-outline">📊 Rapor</a><a href="{{ url_for('yeniden_islem_df') }}" class="btn btn-outline">🛠️ Düzeltici faaliyet notları</a>
+    <a href="{{ url_for('yeniden_islem_liste', excel=1, yil=args.get('yil',''), statu=args.get('statu',''), durum=args.get('durum',''), q=args.get('q','')) }}" class="btn btn-outline">Excel</a></div>
+</div>
+<div class="yi-cards">
+  <div class="yi-c"><b>{{ ozet.adet }}</b><span>Kayıt ({{ ozet.acik }} açık)</span></div>
+  <div class="yi-c"><b>{{ fmt(ozet.miktar) }}</b><span>Toplam miktar</span></div>
+  <div class="yi-c"><b>{{ fmt(ozet.hatali) }}</b><span>Hatalı çıkan</span></div>
+  <div class="yi-c"><b>{{ fmt(ozet.maliyet) }}</b><span>Toplam maliyet (kayıtlı döviz karışık)</span></div>
+</div>
+<form method="GET" class="filters-bar mb-16">
+  <input name="q" value="{{ args.get('q','') }}" class="form-control" style="max-width:260px;" placeholder="Ara: ürün, stok, iş emri, lot, uygunsuzluk…">
+  <select name="yil" class="filter-select" onchange="this.form.submit()"><option value="">Tüm yıllar</option>{% for y in yillar %}<option {% if args.get('yil') == y|string %}selected{% endif %}>{{ y }}</option>{% endfor %}</select>
+  <select name="statu" class="filter-select" onchange="this.form.submit()"><option value="">Tüm statüler</option>{% for s in statuler %}<option {% if args.get('statu') == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select>
+  <select name="durum" class="filter-select" onchange="this.form.submit()"><option value="">Tüm durumlar</option>{% for d in durumlar %}<option {% if args.get('durum') == d %}selected{% endif %}>{{ d }}</option>{% endfor %}</select>
+  <button class="btn btn-outline" type="submit">Ara</button>
+</form>
+<div class="section-card mb-16"><div class="section-body" style="padding:0;overflow-x:auto;">
+{% if liste %}<table class="data-table yi-t"><thead><tr><th>Giriş</th><th>Statü</th><th>Ürün</th><th>İş emri / lot</th><th>Miktar</th><th>Uygunsuzluk</th><th>Yapılan işlem</th><th>Sağlam / hatalı</th><th>Maliyet</th><th>Durum</th></tr></thead><tbody>
+{% for r in liste %}{% set d = durum_goster(r) %}<tr style="cursor:pointer;" onclick="location.href='{{ url_for('yeniden_islem_kayit', rid=r.id) }}'">
+  <td>{{ r.giris_tarihi.strftime('%d.%m.%Y') if r.giris_tarihi else '—' }}<br><small>{{ r.saha or '' }}</small></td><td>{{ r.statu or '' }}</td>
+  <td><a href="{{ url_for('yeniden_islem_kayit', rid=r.id) }}"><b>{{ r.urun or r.stok_adi }}</b></a>{% if r.stok_kodu %}<br><small>{{ r.stok_kodu }}</small>{% endif %}</td>
+  <td>{{ r.is_emri or '' }}<br><small>{{ r.lot_no or '' }}</small></td><td>{{ fmt(r.miktar or 0) }}</td><td>{{ (r.uygunsuzluk or '')[:110] }}</td><td>{{ (r.yapilan_islem or '')[:90] }}</td>
+  <td>{{ fmt(r.saglam_miktar) if r.saglam_miktar is not none else '—' }} / {{ fmt(r.hatali_miktar) if r.hatali_miktar is not none else '—' }}</td>
+  <td>{{ ('{:,.2f}'.format(r.toplam_maliyet)).replace(',', 'X').replace('.', ',').replace('X', '.') if r.toplam_maliyet is not none else '—' }}</td>
+  <td><span class="yi-d d-{{ d.split(' ')[0] }}">{{ d }}</span></td></tr>{% endfor %}</tbody></table>
+<div style="padding:10px 14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><span class="text-muted" style="font-size:12px;">{{ toplam }} kayıt · sayfa {{ sayfa }} / {{ sayfa_sayisi }}</span>
+  {% if sayfa > 1 %}<a class="btn btn-outline" href="{{ url_for('yeniden_islem_liste', s=sayfa-1, yil=args.get('yil',''), statu=args.get('statu',''), durum=args.get('durum',''), q=args.get('q','')) }}">◀</a>{% endif %}
+  {% if sayfa < sayfa_sayisi %}<a class="btn btn-outline" href="{{ url_for('yeniden_islem_liste', s=sayfa+1, yil=args.get('yil',''), statu=args.get('statu',''), durum=args.get('durum',''), q=args.get('q','')) }}">▶</a>{% endif %}</div>
+{% else %}<p class="text-muted" style="padding:16px;">Kayıt yok.</p>{% endif %}</div></div>
+{% if yazabilir %}
+<details class="section-card"><summary class="section-header" style="cursor:pointer;"><span class="section-title">＋ Yeni yeniden işlem kaydı</span></summary><div class="section-body">
+<form method="POST" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;align-items:end;"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+ <div class="form-group" style="margin:0;"><label class="form-label">Karantinaya giriş</label><input type="date" name="giris_tarihi" class="form-control" value="{{ now_iso if now_iso is defined else '' }}"></div>
+ <div class="form-group" style="margin:0;"><label class="form-label">Saha</label><input name="saha" class="form-control" placeholder="yerinde / karantina alanı"></div>
+ <div class="form-group" style="margin:0;"><label class="form-label">Statü</label><input name="statu" list="yi-s" class="form-control" placeholder="KK Red, İade, Üretim firesi…"><datalist id="yi-s">{% for s in statuler %}<option value="{{ s }}">{% endfor %}</datalist></div>
+ <div class="form-group" style="margin:0;"><label class="form-label">Ürün *</label><input name="urun" class="form-control" required></div>
+ <div class="form-group" style="margin:0;"><label class="form-label">Stok kodu</label><input name="stok_kodu" class="form-control"></div>
+ <div class="form-group" style="margin:0;"><label class="form-label">İş emri no</label><input name="is_emri" class="form-control"></div>
+ <div class="form-group" style="margin:0;"><label class="form-label">Lot no</label><input name="lot_no" class="form-control"></div>
+ <div class="form-group" style="margin:0;"><label class="form-label">Miktar *</label><input name="miktar" class="form-control" inputmode="decimal" required></div>
+ <div class="form-group" style="margin:0;grid-column:1/-1;"><label class="form-label">Ürün ile ilgili uygunsuzluk</label><input name="uygunsuzluk" class="form-control" maxlength="1000"></div>
+ <button class="btn btn-primary" type="submit">Kaydı aç</button></form></div></details>{% endif %}
+{% endblock %}

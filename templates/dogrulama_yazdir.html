@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="tr"><head><meta charset="utf-8"><title>D04 F03 — {{ k.no }}</title>
+<style>body{font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#000;background:#fff;margin:14mm;}h1{font-size:16px;text-align:center;margin:0 0 8px;}
+table{border-collapse:collapse;width:100%;}td,th{border:1px solid #000;padding:3px 5px;vertical-align:top;}th{background:#eee;font-size:11px;}.k{width:30%;font-weight:700;background:#f6f6f6;}
+.g{display:flex;gap:8px;margin:8px 0;}.g img{max-height:150px;max-width:48%;border:1px solid #999;}.nok{color:#b00;font-weight:700;}.no-print{margin-bottom:8px;}@media print{.no-print{display:none;}body{margin:8mm;}}</style></head>
+<body><div class="no-print"><button onclick="window.print()">🖨️ Yazdır</button></div>
+<h1>MASTAR &amp; CİHAZ DOĞRULAMA KAYDI <span style="font-weight:400;font-size:11px;">(D04 F03)</span></h1>
+<table><tr><td class="k">Cihaz &amp; Mastar Adı</td><td>{{ k.ad }}</td><td class="k">No</td><td>{{ k.no }}</td></tr>
+<tr><td class="k">Devreye alma tarihi</td><td>{{ k.devreye_alma_tarihi.strftime('%d.%m.%Y') if k.devreye_alma_tarihi }}</td><td class="k">Devreye alma ölçüsü</td><td>{{ k.devreye_alma_olcusu or '' }}</td></tr>
+<tr><td class="k">Doğrulama sıklığı</td><td>{{ (k.dogrulama_ay ~ ' ay') if k.dogrulama_ay }}</td><td class="k">Kalibrasyon sıklığı</td><td>{{ k.kalibrasyon_siklik or '' }}</td></tr>
+<tr><td class="k">Ölçüm aralığı</td><td>{{ k.olcum_araligi or '' }}</td><td class="k">Max izin verilen sapma</td><td>{{ k.max_sapma if k.max_sapma is not none }}</td></tr>
+<tr><td class="k">Marka / model / tip</td><td>{{ k.marka_model or '' }}</td><td class="k">Ortam sıcaklığı</td><td>{{ k.ortam or '' }}</td></tr>
+<tr><td class="k">Doğrulama yapılan mastar takımı</td><td>{{ k.mastar_takimi or '' }}</td><td class="k">Durum / kullanım yeri</td><td>{{ k.durum or '' }} {{ k.kullanim_yeri or '' }}</td></tr>
+<tr><td class="k">Doğrulama yöntemi</td><td colspan="3">{{ k.yontem or '' }}</td></tr>
+<tr><td class="k">Son / gelecek doğrulama</td><td colspan="3">{{ oz.son.strftime('%d.%m.%Y') if oz.son else '—' }} / {{ oz.gelecek.strftime('%d.%m.%Y') if oz.gelecek else '—' }}</td></tr></table>
+{% if gorseller %}<div class="g">{% for g in gorseller %}<img src="{{ url_for('dogrulama_gorsel', gid=g.id) }}" alt="">{% endfor %}</div>{% endif %}
+<table style="margin-top:8px;"><thead><tr><th>No</th><th>Tarih</th><th>Doğrulamayı yapan</th><th>Ölçü</th><th>Referans</th><th>Tolerans</th><th>Ölçülen</th><th>Sapma</th><th>Karar</th></tr></thead><tbody>
+{% for o in oturumlar %}{% for m in olc.get(o.id, []) %}<tr>{% if loop.first %}<td rowspan="{{ olc.get(o.id)|length }}">{{ o.sira }}</td><td rowspan="{{ olc.get(o.id)|length }}">{{ o.tarih.strftime('%d.%m.%Y %H:%M') if o.tarih }}</td><td rowspan="{{ olc.get(o.id)|length }}">{{ o.yapan or '' }}</td>{% endif %}
+<td>{{ m.etiket or '' }}</td><td>{{ m.referans if m.referans is not none }}</td><td>{{ m.tolerans if m.tolerans is not none }}</td><td>{{ m.sonuc if m.sonuc is not none }}</td><td>{{ m.sapma if m.sapma is not none }}</td><td class="{{ 'nok' if m.karar == 'NOK' }}">{{ m.karar or '' }}</td></tr>{% endfor %}{% endfor %}</tbody></table>
+</body></html>

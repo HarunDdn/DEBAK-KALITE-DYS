@@ -1264,6 +1264,21 @@
    ]
   },
   {
+   "id": "nav-yeniden-islem",
+   "yol": "/kalite/yeniden-islem",
+   "standart": "IATF 16949",
+   "madde": "8.7.1.4",
+   "eski_baslik": "Yeniden İşlem Takip",
+   "baslik": "Yeniden İşlem",
+   "aciklama": "Uygunsuz / karantinaya alınan ürünün yeniden işlem kaydı: neden, yapılan işlem, sonuç ve maliyet. Eski D06 F06 listesinin yerine.",
+   "dokumanlar": [
+    {
+     "no": "D04 P02",
+     "grup": "Prosedürler"
+    }
+   ]
+  },
+  {
    "id": "nav-ppap",
    "yol": "/ppap",
    "standart": "IATF 16949",
@@ -1763,6 +1778,21 @@
      "no": "Y01 F09",
      "grup": "Formlar",
      "kayit": "modul"
+    }
+   ]
+  },
+  {
+   "id": "nav-dogrulama",
+   "yol": "/dogrulama",
+   "standart": "IATF 16949",
+   "madde": "7.1.5",
+   "eski_baslik": "Mastar & Cihaz Doğrulama",
+   "baslik": "Mastar & Cihaz Doğrulama",
+   "aciklama": "D04 F03 / F04 / F14 / F15: mastar, cihaz, fikstür, terazi ve termokupl kartı + periyodik doğrulama; referans → ölçülen → sapma ve OK / NOK otomatik, gelecek doğrulama ve kalan gün takibi, rapor.",
+   "dokumanlar": [
+    {
+     "no": "D04 P01",
+     "grup": "Prosedürler"
     }
    ]
   },
@@ -3276,6 +3306,33 @@
     },
     {
      "no": "D03 T09",
+     "grup": "Talimatlar"
+    }
+   ]
+  },
+  {
+   "id": "nav-urun-proses",
+   "yol": "/urun-proses",
+   "standart": "IATF 16949",
+   "madde": "8.5.1.1",
+   "eski_baslik": "Ürün Prosesi",
+   "baslik": "PPAP · Ürün Prosesi",
+   "aciklama": "Müşteri → ürün → ürün ağacı + operasyonlar → PPAP dosyası: iş akış şeması, FMEA (Valeo GSI-RD-370 / standart VDA) ve kontrol planı otomatik; şikayet ve mühendislik değişikliği canlı; revizyon. Operatör yalnız ölçü girer.",
+   "dokumanlar": [
+    {
+     "no": "M02 P02",
+     "grup": "Prosedürler"
+    },
+    {
+     "no": "M02 T04",
+     "grup": "Talimatlar"
+    },
+    {
+     "no": "D04 T20",
+     "grup": "Talimatlar"
+    },
+    {
+     "no": "D04.5 T12",
      "grup": "Talimatlar"
     }
    ]

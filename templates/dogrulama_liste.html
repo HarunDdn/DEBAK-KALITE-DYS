@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Mastar & Cihaz Doğrulama{% endblock %}
+{% block breadcrumb %}<span class="separator">›</span><span>Doğrulama</span>{% endblock %}
+{% block content %}
+<style>.dg-b{display:inline-block;font-size:11px;font-weight:800;padding:2px 8px;border-radius:5px;}.dg-OK{background:#d9f2e0;color:#166534;}.dg-NOK{background:#fde2e2;color:#b91c1c;}
+.dg-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px;}
+.dg-card{display:block;text-decoration:none;color:inherit;border:1px solid var(--border);border-radius:10px;padding:10px 14px;background:var(--bg-secondary);border-left-width:5px;}
+.dg-card b{display:block;font-size:26px;line-height:1.1;}.dg-card span{font-size:12px;color:var(--text-muted);}.dg-card.on{outline:2px solid var(--color-primary);}
+.c0{border-left-color:#b91c1c;}.c0 b{color:#b91c1c;}.c1{border-left-color:#ea580c;}.c1 b{color:#ea580c;}.c2{border-left-color:#ca8a04;}.c4{border-left-color:#6b7280;}.c5{border-left-color:#7c3aed;}.c6{border-left-color:#2563eb;}
+.dg-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}.dg-tab{padding:5px 12px;border-radius:16px;border:1px solid var(--border);text-decoration:none;color:inherit;font-size:13px;background:var(--bg-secondary);}.dg-tab.on{background:var(--color-primary);color:#fff;border-color:var(--color-primary);}
+.dg-st{display:inline-block;font-size:12px;font-weight:800;padding:3px 10px;border-radius:12px;white-space:nowrap;}
+.s0{background:#fde2e2;color:#b91c1c;}.s1{background:#ffe8d5;color:#c2410c;}.s2{background:#fff1c2;color:#92600a;}.s3{background:#e7f6ec;color:#166534;}.s4{background:#eee;color:#555;}.s5{background:#e5e7eb;color:#374151;}.c3x{border-left-color:#6b7280;}
+.dg-tb tr{border-left:4px solid transparent;}.dg-tb tr.r0{border-left-color:#b91c1c;background:rgba(185,28,28,.07);}.dg-tb tr.r5{border-left-color:#6b7280;}.dg-tb tr.r1{border-left-color:#ea580c;}.dg-tb tr.r2{border-left-color:#ca8a04;}
+.dg-tb td{vertical-align:middle;}.dg-tb small{color:var(--text-muted);}</style>
+<div class="mb-16 d-flex align-center justify-between" style="flex-wrap:wrap;gap:10px;">
+  <div><h2 style="font-size:20px;font-weight:700;">🔬 Mastar &amp; Cihaz Doğrulama <span class="text-muted" style="font-size:13px;font-weight:400;">D04 F03</span></h2>
+    <p class="text-muted" style="font-size:13px;">Tarihi geçenler en üstte. Satırdaki <b>Doğrula</b> ile doğrulama girişine geçin; sapma ve OK / NOK otomatik hesaplanır.</p></div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;"><a href="{{ url_for('dogrulama_rapor', grup=grup) }}" class="btn btn-primary">📋 Rapor: geciken / yaklaşan</a>
+    <a href="{{ url_for('dogrulama_liste', excel=1, q=q, grup=grup, tur=tur, durum=durum, filtre=filtre) }}" class="btn btn-outline">📊 Excel</a></div>
+</div>
+<div class="dg-cards">
+  <a class="dg-card c0 {{ 'on' if filtre == 'geciken' }}" href="{{ url_for('dogrulama_liste', filtre='geciken', durum=durum, grup=grup, q=q) }}"><b>{{ sayac.geciken }}</b><span>Tarihi geçen (son 1 yıl)</span></a>
+  <a class="dg-card c3x {{ 'on' if filtre == 'eski' }}" href="{{ url_for('dogrulama_liste', filtre='eski', durum=durum, grup=grup, q=q) }}"><b>{{ sayac.eski }}</b><span>1 yıldan eski (pasife alınmalı mı?)</span></a>
+  <a class="dg-card c1 {{ 'on' if filtre == 'hafta' }}" href="{{ url_for('dogrulama_liste', filtre='hafta', durum=durum, grup=grup, q=q) }}"><b>{{ sayac.hafta }}</b><span>7 gün içinde</span></a>
+  <a class="dg-card c2 {{ 'on' if filtre == 'ay' }}" href="{{ url_for('dogrulama_liste', filtre='ay', durum=durum, grup=grup, q=q) }}"><b>{{ sayac.ay }}</b><span>30 gün içinde</span></a>
+  <a class="dg-card c4 {{ 'on' if filtre == 'yok' }}" href="{{ url_for('dogrulama_liste', filtre='yok', durum=durum, grup=grup, q=q) }}"><b>{{ sayac.yok }}</b><span>Doğrulama kaydı yok</span></a>
+  <a class="dg-card c5 {{ 'on' if filtre == 'nok' }}" href="{{ url_for('dogrulama_liste', filtre='nok', durum=durum, grup=grup, q=q) }}"><b>{{ sayac.nok }}</b><span>Son karar NOK</span></a>
+  <a class="dg-card c6 {{ 'on' if not filtre }}" href="{{ url_for('dogrulama_liste', durum=durum, grup=grup, q=q) }}"><b>{{ sayac.toplam }}</b><span>Tümü ({{ durum }})</span></a>
+</div>
+<div class="dg-tabs">
+  <a class="dg-tab {{ 'on' if not grup }}" href="{{ url_for('dogrulama_liste', durum=durum, filtre=filtre, q=q, tur=tur) }}">Tüm gruplar</a>
+  {% for g in gruplar %}<a class="dg-tab {{ 'on' if grup == g }}" href="{{ url_for('dogrulama_liste', grup=g, durum=durum, filtre=filtre, q=q, tur=tur) }}">{{ g }} <small>{{ grup_say.get(g, 0) }}</small></a>{% endfor %}
+</div>
+<form method="GET" class="filters-bar mb-16" id="dg-f">
+  <input type="hidden" name="grup" value="{{ grup }}"><input type="hidden" name="filtre" value="{{ filtre }}">
+  <input name="q" id="dg-q" value="{{ q }}" class="form-control" style="max-width:280px;" placeholder="Ara: no, ad, ürün, yer…" autofocus>
+  <select name="tur" class="filter-select" onchange="this.form.submit()"><option value="">Mastar + Cihaz</option>{% for t in turler %}<option {% if tur == t %}selected{% endif %}>{{ t }}</option>{% endfor %}</select>
+  <select name="durum" class="filter-select" onchange="this.form.submit()"><option value="aktif" {% if durum == 'aktif' %}selected{% endif %}>Aktif</option><option value="pasif" {% if durum == 'pasif' %}selected{% endif %}>Pasif mastarlar</option><option value="hepsi" {% if durum == 'hepsi' %}selected{% endif %}>Tümü</option></select>
+  <button class="btn btn-outline" type="submit">Ara</button>
+</form>
+<div class="section-card mb-16"><div class="section-body" style="padding:0;overflow-x:auto;">
+{% if liste %}<table class="data-table dg-tb"><thead><tr><th>Durum</th><th>No</th><th>Ad</th><th>Grup / ürün</th><th>Sıklık</th><th>Son doğrulama</th><th>Gelecek</th><th>Son karar</th><th></th></tr></thead><tbody id="dg-body">
+{% for k, d in liste %}{% set sn = sinif(d) %}<tr class="r{{ sn }}" data-s="{{ (k.no ~ ' ' ~ k.ad ~ ' ' ~ (k.urun or '') ~ ' ' ~ (k.grup or '') ~ ' ' ~ (k.kullanim_yeri or ''))|lower }}" style="{{ 'opacity:.6;' if k.aktif is false }}">
+  <td><span class="dg-st s{{ sn }}">{{ etiket(d) }}</span></td>
+  <td><a href="{{ url_for('dogrulama_kart', kid=k.id) }}"><b>{{ k.no }}</b></a></td><td>{{ k.ad }}{% if k.aktif is false %} <small>(pasif)</small>{% endif %}</td>
+  <td>{{ k.grup or '' }}<br><small>{{ k.urun or '' }}</small></td><td>{{ (k.dogrulama_ay ~ ' ay') if k.dogrulama_ay else '—' }}</td>
+  <td>{{ d.son.strftime('%d.%m.%Y') if d.son else '—' }}{% if d.yapan %}<br><small>{{ d.yapan }}</small>{% endif %}</td><td>{{ d.gelecek.strftime('%d.%m.%Y') if d.gelecek else '—' }}</td>
+  <td>{% if d.karar %}<span class="dg-b dg-{{ d.karar }}">{{ d.karar }}</span>{% endif %}</td>
+  <td style="white-space:nowrap;">{% if k.aktif is not false %}<a href="{{ url_for('dogrulama_kart', kid=k.id) }}#dogrula" class="btn {{ 'btn-primary' if sn in (0, 1) else 'btn-outline' }}" style="padding:3px 12px;font-size:12px;">🔬 Doğrula</a>{% endif %}</td></tr>{% endfor %}</tbody></table>
+{% else %}<p class="text-muted" style="padding:16px;">Bu filtrede kayıt yok.</p>{% endif %}</div></div>
+<script>(function(){const q=document.getElementById('dg-q'),b=document.getElementById('dg-body');if(!q||!b)return;
+ q.addEventListener('input',()=>{const t=q.value.toLowerCase().trim();[].forEach.call(b.rows,r=>{r.style.display=!t||r.dataset.s.includes(t)?'':'none';});});
+ document.getElementById('dg-f').addEventListener('submit',e=>{});})();</script>
+{% if yonetici %}
+<details class="section-card"><summary class="section-header" style="cursor:pointer;"><span class="section-title">＋ Yeni mastar / cihaz kartı</span></summary><div class="section-body">
+<form method="POST" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;align-items:end;"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+ <div class="form-group" style="margin:0;"><label class="form-label">No *</label><input name="no" class="form-control" required maxlength="80"></div>
+ <div class="form-group" style="margin:0;"><label class="form-label">Ad *</label><input name="ad" class="form-control" required maxlength="250"></div>
+ <div class="form-group" style="margin:0;"><label class="form-label">Tür</label><select name="tur" class="form-control">{% for t in turler %}<option>{{ t }}</option>{% endfor %}</select></div>
+ <div class="form-group" style="margin:0;"><label class="form-label">Grup</label><input name="grup" list="dg-g" class="form-control" maxlength="80" placeholder="Kalite / Üretim / Laboratuvar"><datalist id="dg-g">{% for g in gruplar %}<option value="{{ g }}">{% endfor %}</datalist></div>
+ <div class="form-group" style="margin:0;"><label class="form-label">Doğrulama sıklığı (ay)</label><input name="dogrulama_ay" type="number" min="1" class="form-control"></div>
+ <div class="form-group" style="margin:0;"><label class="form-label">İzin verilen sapma</label><input name="max_sapma" class="form-control" inputmode="decimal"></div>
+ <div class="form-group" style="margin:0;"><label class="form-label">Kullanım yeri</label><input name="kullanim_yeri" class="form-control" maxlength="150"></div>
+ <button class="btn btn-primary" type="submit">Kart aç</button></form></div></details>{% endif %}
+{% endblock %}

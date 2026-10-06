@@ -18,6 +18,7 @@ D_PUANLAR = (1, 4, 6, 8, 10)
 FM_PUANLAR = (1, 2, 3, 4, 6, 8, 10)
 DURUMLAR = {"D": ("Taahhüt edildi", "Devam ediyor", "Tamamlandı"), "P": ("Taahhüt edildi", "Devam ediyor", "Uygulandı"),
             "M": ("Taahhüt edildi", "Devam ediyor", "Tamamlandı")}
+STANDARTLAR = {"GSI": "GSI-RD-370 (Valeo)", "VDA": "AIAG-VDA (standart)"}
 AP_AD = {"H": "Yüksek", "M": "Orta", "L": "Düşük", "": ""}
 
 
@@ -81,17 +82,35 @@ def normalize(satir, tip):
     return out
 
 
-def hesapla(satir, tip):
-    """Satır için {ap, ap2, rpn, uyari: [(seviye, metin)]} — saklanmaz, her seferinde üretilir."""
+def puan_listesi(std="GSI"):
+    """Standarda göre seçilebilen puanlar: GSI-RD-370 kısıtlı kümeler; AIAG-VDA 1-10 tam ölçek."""
+    if std == "VDA":
+        t = tuple(range(1, 11))
+        return {"S": t, "O": t, "D": t}
+    return {"S": S_PUANLAR, "O": O_PUANLAR, "D": D_PUANLAR}
+
+
+def _ap_std(tip, s, o, d, std):
+    if std != "VDA":
+        return ap(tip, s, o, d)
+    s, o, d = _n(s), _n(o), _n(d)
+    if not (1 <= s <= 10 and 1 <= o <= 10 and 1 <= d <= 10):
+        return ""
+    from fmea_ap_matrix import hesapla_ap  # AIAG-VDA 2019 PFMEA Action Priority tablosu
+    return hesapla_ap(s, o, d)
+
+
+def hesapla(satir, tip, std="GSI"):
+    """Satır için {ap, ap2, rpn, uyari: [(seviye, metin)]} — saklanmaz, her seferinde üretilir. std: 'GSI' (Valeo GSI-RD-370) | 'VDA' (AIAG-VDA)."""
     S, O, D = _n(satir.get("S")), _n(satir.get("O")), _n(satir.get("D"))
     O2, D2 = _n(satir.get("O2")), _n(satir.get("D2"))
-    a = ap(tip, S, O, D)
-    a2 = ap(tip, S, O2 or O, D2 or D) if (O2 or D2) else ""
+    a = _ap_std(tip, S, O, D, std)
+    a2 = _ap_std(tip, S, O2 or O, D2 or D, std) if (O2 or D2) else ""
     rpn = S * O * D if (S and O and D) else None
     u = []
     if S == 1:
         u.append(("bilgi", "S=1: etki yok, risk yok."))
-    elif O == 1 and tip != "M":
+    elif O == 1 and tip != "M" and std != "VDA":
         u.append(("bilgi", "O=1 ise tespit gereksiz / isteğe bağlıdır (D=1)."))
     act = (satir.get("act") or "").strip()
     if a == "H" and not act:
@@ -101,12 +120,12 @@ def hesapla(satir, tip):
     return {"ap": a, "ap2": a2, "rpn": rpn, "uyari": u}
 
 
-def ozet(satirlar, tip):
+def ozet(satirlar, tip, std="GSI"):
     """İlk / güncel AP sayaçları: {'ilk': {H, M, L}, 'guncel': {H, M, L}}."""
     ilk = {"H": 0, "M": 0, "L": 0}
     gun = {"H": 0, "M": 0, "L": 0}
     for r in satirlar:
-        h = hesapla(r, tip)
+        h = hesapla(r, tip, std)
         if h["ap"]:
             ilk[h["ap"]] += 1
         f = h["ap2"] or h["ap"]
@@ -115,11 +134,13 @@ def ozet(satirlar, tip):
     return {"ilk": ilk, "guncel": gun}
 
 
-def dogrula_puan(tip, alan, deger):
+def dogrula_puan(tip, alan, deger, std="GSI"):
     """Seçilebilen puan mı? Boş serbest."""
     if deger in (None, "", 0, "0"):
         return True
     v = _n(deger)
+    if std == "VDA":
+        return 1 <= v <= 10
     if alan == "S":
         return v in S_PUANLAR
     if tip == "M":

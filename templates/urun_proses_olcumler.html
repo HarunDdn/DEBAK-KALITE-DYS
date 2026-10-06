@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Ölçüler — {{ u.urun_adi }}{% endblock %}
+{% block breadcrumb %}<span class="separator">›</span><a href="{{ url_for('urun_proses_liste') }}">Ürün Prosesi</a><span class="separator">›</span><a href="{{ url_for('urun_proses_detay', uid=u.id) }}">{{ u.urun_adi }}</a><span class="separator">›</span><span>Ölçüler</span>{% endblock %}
+{% block content %}
+<style>.ol-b{display:inline-block;font-size:11px;font-weight:800;padding:2px 8px;border-radius:5px;}.ol-OK{background:#d9f2e0;color:#166534;}.ol-NOK{background:#fde2e2;color:#b91c1c;}</style>
+<div class="mb-16 d-flex align-center justify-between" style="flex-wrap:wrap;gap:10px;">
+  <div><h2 style="font-size:20px;font-weight:700;">📈 Ölçüler — {{ u.urun_adi }}</h2><p class="text-muted" style="font-size:13px;">{{ toplam }} ölçü kaydı{% if toplam > 400 %} (son 400 gösteriliyor){% endif %}</p></div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;"><a href="{{ url_for('urun_proses_olcumler', uid=u.id, excel=1, adim=adim_f or '') }}" class="btn btn-outline">📊 Excel</a><a href="{{ url_for('urun_proses_olcum', uid=u.id) }}" class="btn btn-primary">📏 Ölçü gir</a><a href="{{ url_for('urun_proses_detay', uid=u.id) }}" class="btn btn-outline">⬅️ Proses akışı</a></div>
+</div>
+<form method="GET" class="filters-bar mb-16"><select name="adim" class="filter-select" onchange="this.form.submit()"><option value="">Tüm adımlar</option>{% for i, ad in adimlar %}<option value="{{ i }}" {% if adim_f == i %}selected{% endif %}>{{ ad }}</option>{% endfor %}</select></form>
+<div class="section-card mb-16"><div class="section-header"><span class="section-title">İstatistik (karakteristik bazında)</span><span class="text-muted" style="font-size:12px;">Cp / Cpk ≥ 5 değerde, bireysel değerlerden (uzun dönem yaklaşık)</span></div><div class="section-body" style="padding:0;overflow-x:auto;">
+  {% if stat %}<table class="data-table"><thead><tr><th>Adım</th><th>Karakteristik</th><th>n</th><th>Ort.</th><th>Min</th><th>Maks</th><th>Limitler</th><th>NOK</th><th>Cp</th><th>Cpk</th></tr></thead><tbody>
+  {% for s in stat %}<tr><td>{{ s.adim }}</td><td><b>{{ s.kar }}</b> <span class="text-muted">{{ s.birim }}</span></td><td>{{ s.n }}</td><td>{{ '%.3f'|format(s.ort) }}</td><td>{{ s.min }}</td><td>{{ s.max }}</td><td>{{ s.alt if s.alt is not none else '—' }} … {{ s.ust if s.ust is not none else '—' }}</td>
+    <td>{% if s.nok %}<span class="ol-b ol-NOK">{{ s.nok }} (%{{ '%.1f'|format(s.nok / s.n * 100) }})</span>{% else %}0{% endif %}</td>
+    <td>{{ '%.2f'|format(s.cp) if s.cp is not none else '—' }}</td><td>{% if s.cpk is not none %}<b style="color:{{ '#b91c1c' if s.cpk < 1.33 else '#166534' }};">{{ '%.2f'|format(s.cpk) }}</b>{% else %}—{% endif %}</td></tr>{% endfor %}</tbody></table>
+  {% else %}<p class="text-muted" style="padding:16px;">Henüz ölçü yok.</p>{% endif %}</div></div>
+<div class="section-card"><div class="section-header"><span class="section-title">Ölçü kayıtları</span></div><div class="section-body" style="padding:0;overflow-x:auto;">
+  {% if kayit %}<table class="data-table"><thead><tr><th>Tarih</th><th>Adım</th><th>Karakteristik</th><th>No</th><th>Değer</th><th>Sonuç</th><th>Vardiya</th><th>İş emri</th><th>Lot</th><th>Ölçen</th></tr></thead><tbody>
+  {% for k, r, ad, olcen in kayit %}<tr><td>{{ k.tarih.strftime('%d.%m.%Y %H:%M') if k.tarih else '' }}</td><td>{{ ad }}</td><td>{{ r.karakteristik if r else '' }}</td><td>{{ k.numune_no }}</td><td><b>{{ k.deger }}</b> {{ r.birim if r and r.birim else '' }}</td><td><span class="ol-b ol-{{ k.sonuc }}">{{ k.sonuc }}</span></td><td>{{ k.vardiya or '' }}</td><td>{{ k.is_emri or '' }}</td><td>{{ k.lot_no or '' }}</td><td>{{ olcen }}</td></tr>{% endfor %}</tbody></table>
+  {% else %}<p class="text-muted" style="padding:16px;">Kayıt yok.</p>{% endif %}</div></div>
+{% endblock %}

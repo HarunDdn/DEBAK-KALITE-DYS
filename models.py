@@ -2817,6 +2817,131 @@ class FmeaSatir(Base):
     D2 = Column(Integer, nullable=True)
 
 
+class ProsesAdimTanim(Base):
+    """2026 — Proses adımı kataloğu (Enjeksiyon hazırlama, Enjeksiyon, Çapak alma, Fırın, Kalite kontrol …). FMEA / kontrol planı şablonları adıma bağlanır."""
+    __tablename__ = "proses_adim_tanimlari"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    ad = Column(Unicode(120), nullable=False, unique=True)
+    sira = Column(Integer, nullable=False, default=0)
+    aktif = Column(Boolean, nullable=True, default=True)
+    aciklama = Column(Unicode(300), nullable=True)
+
+
+class UrunProsesi(Base):
+    """Ürünün proses akışı: müşteri → ürün → adımlar. Adım eklenince o adımın FMEA'sı ve kontrol planı şablonu otomatik gelir."""
+    __tablename__ = "urun_prosesleri"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    musteri = Column(Unicode(150), nullable=False, index=True)
+    urun_adi = Column(Unicode(200), nullable=False)
+    urun_kodu = Column(Unicode(80), nullable=True)
+    teknik_resim_id = Column(Integer, nullable=True)                    # teknik_resimler.id (isteğe bağlı)
+    fmea_standart = Column(Unicode(8), nullable=True)                   # GSI (Valeo GSI-RD-370) | VDA (AIAG-VDA); boşsa GSI
+    aciklama = Column(Unicode(500), nullable=True)
+    aktif = Column(Boolean, nullable=True, default=True)
+    olusturan_id = Column(Integer, nullable=True)
+    olusturma_tarihi = Column(DateTime, default=datetime.now)
+
+
+class UrunProsesAdimi(Base):
+    __tablename__ = "urun_proses_adimlari"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    urun_proses_id = Column(Integer, nullable=False, index=True)
+    adim_tanim_id = Column(Integer, nullable=False)
+    sira = Column(Integer, nullable=False, default=0)
+    dugum_id = Column(Integer, nullable=True)                           # ürün ağacı düğümü (boşsa ürünün kendisi)
+
+
+class UrunAgacDugumu(Base):
+    """Ürün ağacı (elle girilir): ürün → yarı mamul → hammadde. Operasyonlar (UrunProsesAdimi) düğüme bağlanır; iş akış şeması buradan otomatik çizilir."""
+    __tablename__ = "urun_agac_dugumleri"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    urun_proses_id = Column(Integer, nullable=False, index=True)
+    ust_id = Column(Integer, nullable=True)                             # boşsa kök (ürünün kendisi)
+    tur = Column(Unicode(20), nullable=False, default="Yarı Mamul")     # Ürün / Yarı Mamul / Hammadde
+    kod = Column(Unicode(80), nullable=True)
+    ad = Column(Unicode(200), nullable=False)
+    miktar = Column(Unicode(40), nullable=True)
+    sira = Column(Integer, nullable=False, default=0)
+
+
+class PpapRevizyon(Base):
+    """Ürünün PPAP dosyasının (iş akışı + FMEA + kontrol planı) revizyon anlık görüntüsü."""
+    __tablename__ = "urun_ppap_revizyonlari"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    urun_proses_id = Column(Integer, nullable=False, index=True)
+    rev_no = Column(Integer, nullable=False, default=0)
+    tarih = Column(DateTime, default=datetime.now)
+    neden = Column(Unicode(500), nullable=True)
+    olusturan_id = Column(Integer, nullable=True)
+    ozet_hash = Column(Unicode(64), nullable=True)
+    veri_json = Column(Text, nullable=True)
+
+
+class ProsesFmeaSatiri(Base):
+    """FMEA satırı (P-FMEA, GSI-RD-370): urun_proses_id boşsa o adım için GENEL (şablon) satır — tüm ürünlerde otomatik görünür;
+    doluysa yalnız o ürüne özgü. AP/RPN saklanmaz (fmea_core)."""
+    __tablename__ = "proses_fmea_satirlari"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    adim_tanim_id = Column(Integer, nullable=False, index=True)
+    urun_proses_id = Column(Integer, nullable=True, index=True)
+    standart = Column(Unicode(8), nullable=True)                        # GSI | VDA (boşsa GSI) — kütüphaneler ayrı yürür
+    sira = Column(Integer, nullable=False, default=0)
+    fn = Column(Text, nullable=True)
+    eff = Column(Text, nullable=True)
+    S = Column(Integer, nullable=True)
+    mode = Column(Text, nullable=True)
+    cause = Column(Text, nullable=True)
+    prev = Column(Text, nullable=True)
+    O = Column(Integer, nullable=True)
+    det = Column(Text, nullable=True)
+    D = Column(Integer, nullable=True)
+    act = Column(Text, nullable=True)
+    O2 = Column(Integer, nullable=True)
+    D2 = Column(Integer, nullable=True)
+
+
+class ProsesKpSatiri(Base):
+    """Kontrol planı satırı. urun_proses_id boşsa adım için ŞABLON (karakteristik listesi); doluysa ürüne özgü satır
+    (toleranslı — ölçü girişi bu satırlara yapılır). kaynak_id: şablondan gelmişse şablon satırı."""
+    __tablename__ = "proses_kp_satirlari"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    adim_tanim_id = Column(Integer, nullable=False, index=True)
+    urun_proses_id = Column(Integer, nullable=True, index=True)
+    kaynak_id = Column(Integer, nullable=True)
+    sira = Column(Integer, nullable=False, default=0)
+    karakteristik = Column(Unicode(200), nullable=True)
+    tur = Column(Unicode(12), nullable=True)                            # Ölçü / Görsel
+    birim = Column(Unicode(20), nullable=True)
+    nominal = Column(Float, nullable=True)
+    alt_limit = Column(Float, nullable=True)
+    ust_limit = Column(Float, nullable=True)
+    ozel = Column(Unicode(4), nullable=True)                            # CC / SC
+    olcum_araci = Column(Unicode(150), nullable=True)
+    numune = Column(Integer, nullable=True)                             # her kontrolde numune adedi
+    siklik = Column(Unicode(100), nullable=True)
+    yontem = Column(Unicode(300), nullable=True)
+    reaksiyon = Column(Unicode(400), nullable=True)
+    fmea_satir_id = Column(Integer, nullable=True)                      # ilgili FMEA satırı
+
+
+class OlcumKaydi(Base):
+    """Ölçü girişi: yalnız değer girilir; karar (OK / NOK) limitlerden otomatik. Bir kontrol = ortak 'grup' kodu."""
+    __tablename__ = "proses_olcum_kayitlari"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    grup = Column(Unicode(30), nullable=False, index=True)
+    urun_proses_id = Column(Integer, nullable=False, index=True)
+    adim_id = Column(Integer, nullable=False)                           # urun_proses_adimlari.id
+    kp_satir_id = Column(Integer, nullable=False, index=True)
+    tarih = Column(DateTime, default=datetime.now)
+    vardiya = Column(Unicode(10), nullable=True)
+    is_emri = Column(Unicode(40), nullable=True)
+    lot_no = Column(Unicode(40), nullable=True)
+    numune_no = Column(Integer, nullable=False, default=1)
+    deger = Column(Float, nullable=True)
+    sonuc = Column(Unicode(4), nullable=False)                          # OK / NOK
+    olcen_id = Column(Integer, nullable=True)
+
+
 TR_DAGITIM = ("Yönetim", "Laboratuvar", "Kalite", "Üretim")              # D04.4 F02 dağıtım sütunları
 TR_ETKILER = ("Kontrol Planı", "PFMEA", "Kalıp / Takım", "Mastar / Aparat", "Ölçüm Programı (CMM)", "İş / Kontrol Talimatı",
               "Ambalaj / Etiket", "PPAP / Numune Onayı", "Tedarikçi / Hammadde", "Stok / Yarı Mamul")
@@ -2897,8 +3022,127 @@ def _migrate_mssql_yeni_yapi():
     except Exception as exc:  # yetki yoksa uygulama açılmaya devam etsin; DBA mssql_yeni_yapi.sql'i çalıştırır
         print(f"[UYARI] Yeni yapı kolonları eklenemedi (mssql_yeni_yapi.sql DBA tarafından uygulanmalı): {exc}", flush=True)
 
+class DogrulamaKarti(Base):
+    """2026 — D04 F03 Mastar & Cihaz Doğrulama Kaydı kartı (mastar / cihaz başına). Kalibrasyon listesiyle bağı şimdilik yok (ekipman_id ileride)."""
+    __tablename__ = "dogrulama_kartlari"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    no = Column(Unicode(80), nullable=False, index=True)                # cihaz / mastar no
+    ad = Column(Unicode(250), nullable=False)
+    tur = Column(Unicode(12), nullable=False, default="Mastar")         # Mastar / Cihaz
+    grup = Column(Unicode(80), nullable=True)                           # Kalite / Üretim / Laboratuvar / Cihaz / ürün adı
+    urun = Column(Unicode(120), nullable=True)                          # kaynak dosya (ürün / mastar takımı)
+    devreye_alma_tarihi = Column(Date, nullable=True)
+    devreye_alma_olcusu = Column(Unicode(200), nullable=True)
+    dogrulama_ay = Column(Integer, nullable=True)                       # doğrulama sıklığı (ay)
+    kalibrasyon_siklik = Column(Unicode(40), nullable=True)
+    olcum_araligi = Column(Unicode(100), nullable=True)
+    max_sapma = Column(Float, nullable=True)                            # izin verilen sapma / aşınma toleransı (mutlak)
+    marka_model = Column(Unicode(200), nullable=True)
+    ortam = Column(Unicode(100), nullable=True)
+    mastar_takimi = Column(Unicode(300), nullable=True)
+    durum = Column(Unicode(60), nullable=True)                          # Aktif / PASİF / açıklama
+    aktif = Column(Boolean, nullable=True, default=True)
+    kullanim_yeri = Column(Unicode(150), nullable=True)
+    yontem = Column(Unicode(1000), nullable=True)                       # doğrulama yöntemi metni
+    kaynak = Column(Unicode(300), nullable=True)                        # içe aktarılan dosya / sayfa
+    ekipman_id = Column(Integer, nullable=True)                         # calibration_equipment.id (şimdilik kullanılmıyor)
+    olusturma_tarihi = Column(DateTime, default=datetime.now)
+
+
+class DogrulamaOturumu(Base):
+    __tablename__ = "dogrulama_oturumlari"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    kart_id = Column(Integer, nullable=False, index=True)
+    sira = Column(Integer, nullable=False, default=0)
+    tarih = Column(DateTime, nullable=True)
+    yapan = Column(Unicode(100), nullable=True)
+    yapan_id = Column(Integer, nullable=True)
+    ortam = Column(Unicode(100), nullable=True)
+    cihaz = Column(Unicode(150), nullable=True)                         # doğrulamada kullanılan cihaz (mastar doğrulama)
+    karar = Column(Unicode(8), nullable=True)                           # OK / NOK (satırlardan)
+    notu = Column(Unicode(500), nullable=True)
+
+
+class DogrulamaOlcum(Base):
+    __tablename__ = "dogrulama_olcumleri"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    oturum_id = Column(Integer, nullable=False, index=True)
+    sira = Column(Integer, nullable=False, default=0)
+    etiket = Column(Unicode(150), nullable=True)                        # Ref. 2 UÇ, İÇ ÇAP 4,998 …
+    referans = Column(Float, nullable=True)
+    tolerans = Column(Float, nullable=True)
+    sonuc = Column(Float, nullable=True)
+    sapma = Column(Float, nullable=True)
+    karar = Column(Unicode(8), nullable=True)
+
+
+class DogrulamaGorsel(Base):
+    __tablename__ = "dogrulama_gorselleri"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    kart_id = Column(Integer, nullable=False, index=True)
+    tur = Column(Unicode(12), nullable=False, default="yontem")         # cihaz / yontem
+    dosya_adi = Column(Unicode(200), nullable=True)
+    dosya_yolu = Column(Unicode(500), nullable=True)
+
+class YenidenIslemKaydi(Base):
+    """2026 — Uygun olmayan ürün & yeniden işlem takip kaydı (eski D06 F06 Excel listesinin yerine)."""
+    __tablename__ = "yeniden_islem_kayitlari"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    giris_tarihi = Column(Date, nullable=True, index=True)               # karantinaya giriş
+    saha = Column(Unicode(80), nullable=True)                            # yerinde / karantina alanı
+    statu = Column(Unicode(60), nullable=True, index=True)               # KK Red, İade, Üretim firesi, Müşteri şikayeti …
+    urun = Column(Unicode(200), nullable=True, index=True)
+    stok_adi = Column(Unicode(250), nullable=True)
+    stok_kodu = Column(Unicode(60), nullable=True)
+    is_emri = Column(Unicode(60), nullable=True)
+    lot_no = Column(Unicode(100), nullable=True)
+    miktar = Column(Float, nullable=True)
+    uygunsuzluk = Column(Unicode(1000), nullable=True)
+    islem_tarihi = Column(Date, nullable=True)
+    yapilan_islem = Column(Unicode(1000), nullable=True)
+    aksiyon = Column(Unicode(1000), nullable=True)
+    sorumlu = Column(Unicode(100), nullable=True)
+    termin = Column(Date, nullable=True)
+    durum = Column(Unicode(30), nullable=True)                           # Açık / Devam ediyor / Tamamlandı
+    saglam_miktar = Column(Float, nullable=True)
+    hatali_miktar = Column(Float, nullable=True)
+    sure = Column(Float, nullable=True)
+    sure_birim = Column(Unicode(10), nullable=True)                      # dk / saat
+    operator_sayisi = Column(Float, nullable=True)
+    birim_fiyat = Column(Float, nullable=True)
+    doviz = Column(Unicode(10), nullable=True)
+    parca_birim_maliyet = Column(Float, nullable=True)
+    imha_maliyeti = Column(Float, nullable=True)
+    geri_kazanim = Column(Float, nullable=True)
+    iscilik_maliyeti = Column(Float, nullable=True)
+    toplam_maliyet = Column(Float, nullable=True)
+    dof_id = Column(Integer, nullable=True)                              # ilgili DÖF kaydı (isteğe bağlı)
+    kaynak = Column(Unicode(100), nullable=True)                         # 'import:kayıt#12' / 'elle'
+    olusturan_id = Column(Integer, nullable=True)
+    olusturma_tarihi = Column(DateTime, default=datetime.now)
+
+
+class YenidenIslemDF(Base):
+    """Yeniden işlem listesindeki 'Düzeltici Faaliyet' sayfası (tarih, ürün, uygunsuzluk, kök neden, planlanan / gerçekleşen aksiyon)."""
+    __tablename__ = "yeniden_islem_df"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    tarih = Column(Unicode(60), nullable=True)
+    tarih_d = Column(Date, nullable=True)
+    urun = Column(Unicode(200), nullable=True)
+    uygunsuzluk = Column(Unicode(1000), nullable=True)
+    acil_onlem = Column(Unicode(1000), nullable=True)
+    kok_neden = Column(Unicode(1000), nullable=True)
+    planlanan = Column(Unicode(1000), nullable=True)
+    sorumlu = Column(Unicode(150), nullable=True)
+    hedef_tarih = Column(Date, nullable=True)
+    gerceklesen = Column(Unicode(1000), nullable=True)
+    gerceklesen_tarih = Column(Date, nullable=True)
+    kaynak = Column(Unicode(100), nullable=True)
+
+
 
 _DENETIM_KOLONLARI = [  # 2026 iç denetim otomasyonu — tablo, kolon, SQLite tipi
+    ("urun_proses_adimlari", "dugum_id", "INTEGER"), ("urun_prosesleri", "fmea_standart", "VARCHAR(8)"), ("proses_fmea_satirlari", "standart", "VARCHAR(8)"),
     ("internal_audits", "checklist_id", "INTEGER"), ("internal_audits", "ekip_json", "TEXT"), ("internal_audits", "otomatik", "BOOLEAN"),
     ("audit_findings", "answer_id", "INTEGER"),
     ("audit_checklist_questions", "kime", "VARCHAR(200)"), ("audit_checklist_questions", "ipucu", "TEXT"),

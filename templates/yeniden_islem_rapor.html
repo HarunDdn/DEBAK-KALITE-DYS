@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Yeniden İşlem Raporu{% endblock %}
+{% block breadcrumb %}<span class="separator">›</span><a href="{{ url_for('yeniden_islem_liste') }}">Yeniden İşlem</a><span class="separator">›</span><span>Rapor</span>{% endblock %}
+{% block content %}
+<div class="mb-16 d-flex align-center justify-between" style="flex-wrap:wrap;gap:10px;"><div><h2 style="font-size:20px;font-weight:700;">📊 Yeniden İşlem Raporu</h2>
+  <p class="text-muted" style="font-size:13px;">{{ ozet.adet }} kayıt · toplam miktar {{ fmt(ozet.miktar) }} · hatalı {{ fmt(ozet.hatali) }} · toplam maliyet {{ fmt(ozet.maliyet) }} (para birimleri karışık kayıtlıdır)</p></div>
+  <a href="{{ url_for('yeniden_islem_liste') }}" class="btn btn-outline">⬅️ Liste</a></div>
+<div class="section-card mb-16"><div class="section-header"><span class="section-title">Yıllara göre</span></div><div class="section-body" style="padding:0;overflow-x:auto;"><table class="data-table"><thead><tr><th>Yıl</th><th>Kayıt</th><th>Miktar</th><th>Hatalı</th><th>Maliyet</th></tr></thead><tbody>
+{% for y, a in yil %}<tr><td><a href="{{ url_for('yeniden_islem_liste', yil=y) }}">{{ y if y else '—' }}</a></td><td>{{ a.adet }}</td><td>{{ fmt(a.miktar) }}</td><td>{{ fmt(a.hatali) }}</td><td>{{ fmt(a.maliyet) }}</td></tr>{% endfor %}</tbody></table></div></div>
+<div class="section-card mb-16"><div class="section-header"><span class="section-title">Statüye göre</span></div><div class="section-body" style="padding:0;overflow-x:auto;"><table class="data-table"><thead><tr><th>Statü</th><th>Kayıt</th><th>Miktar</th><th>Maliyet</th></tr></thead><tbody>
+{% for s, a in statu %}<tr><td><a href="{{ url_for('yeniden_islem_liste', statu=s) }}">{{ s }}</a></td><td>{{ a.adet }}</td><td>{{ fmt(a.miktar) }}</td><td>{{ fmt(a.maliyet) }}</td></tr>{% endfor %}</tbody></table></div></div>
+<div class="section-card"><div class="section-header"><span class="section-title">En yüksek maliyetli 20 ürün</span></div><div class="section-body" style="padding:0;overflow-x:auto;"><table class="data-table"><thead><tr><th>Ürün</th><th>Kayıt</th><th>Miktar</th><th>Hatalı</th><th>Maliyet</th></tr></thead><tbody>
+{% for u, a in top_urun %}<tr><td><a href="{{ url_for('yeniden_islem_liste', q=u) }}">{{ u }}</a></td><td>{{ a.adet }}</td><td>{{ fmt(a.miktar) }}</td><td>{{ fmt(a.hatali) }}</td><td>{{ fmt(a.maliyet) }}</td></tr>{% endfor %}</tbody></table></div></div>
+{% endblock %}

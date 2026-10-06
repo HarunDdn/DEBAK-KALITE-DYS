@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% from "_ppap_akis.html" import akis, stil %}
+{% block title %}Ürün ağacı — {{ u.urun_adi }}{% endblock %}
+{% block breadcrumb %}<span class="separator">›</span><a href="{{ url_for('urun_proses_liste') }}">Ürün Prosesi</a><span class="separator">›</span><a href="{{ url_for('urun_ppap', uid=u.id) }}">{{ u.urun_adi }}</a><span class="separator">›</span><span>Ürün ağacı</span>{% endblock %}
+{% block content %}
+{{ stil() }}
+<div class="mb-16 d-flex align-center justify-between" style="flex-wrap:wrap;gap:10px;">
+  <div><div class="text-muted" style="font-size:12px;">{{ u.musteri }}{% if u.urun_kodu %} · {{ u.urun_kodu }}{% endif %}</div><h2 style="font-size:20px;font-weight:700;">🌳 Ürün ağacı ve operasyonlar — {{ u.urun_adi }}</h2>
+    <p class="text-muted" style="font-size:13px;">Ağacı kurun, her düğüme operasyon ekleyin. İş akış şeması, FMEA ve kontrol planı kütüphaneden otomatik gelir.</p></div>
+  <div style="display:flex;gap:8px;"><a href="{{ url_for('urun_ppap', uid=u.id) }}" class="btn btn-primary">📑 PPAP dosyası</a><a href="{{ url_for('urun_proses_kutuphane') }}" class="btn btn-outline">📚 Operasyon kütüphanesi</a></div>
+</div>
+<div class="section-card mb-16"><div class="section-header"><span class="section-title">İş akış şeması (otomatik)</span></div><div class="section-body ak-w">{{ akis(agac) }}</div></div>
+<div class="section-card mb-16"><div class="section-header"><span class="section-title">Düğümler ve operasyonlar</span></div><div class="section-body" style="padding:0;overflow-x:auto;">
+<table class="data-table"><thead><tr><th>Düğüm</th><th>Tür</th><th>Kod</th><th>Miktar</th><th>Operasyonlar (sırayla)</th>{% if yonetici %}<th></th>{% endif %}</tr></thead><tbody>
+{% for d in dugumler %}<tr><td><b>{{ d.ad }}</b></td><td>{{ d.tur }}</td><td>{{ d.kod }}</td><td>{{ d.miktar }}</td>
+ <td>{% for a in d.adimlar %}<span style="display:inline-flex;align-items:center;gap:2px;margin:2px 6px 2px 0;"><span class="ak-b ak-op" style="min-width:0;flex-direction:row;padding:2px 10px;">{{ loop.index }}. {{ a.ad }}</span>
+   {% if yonetici %}<form method="POST" style="display:inline-flex;gap:2px;"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="uadim" value="{{ a.uid }}"><button name="action" value="op_yukari" class="btn btn-outline" style="padding:0 5px;" title="Öne">◀</button><button name="action" value="op_asagi" class="btn btn-outline" style="padding:0 5px;" title="Arkaya">▶</button><button name="action" value="op_sil" class="btn btn-outline" style="padding:0 5px;" onclick="return confirm('Operasyon çıkarılsın mı? (ürüne özgü FMEA / kontrol planı satırları da silinir)')">✕</button></form>{% endif %}</span>{% else %}<span class="text-muted">—</span>{% endfor %}
+   {% if yonetici %}<form method="POST" style="display:inline-flex;gap:4px;margin-top:4px;"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="op_ekle"><input type="hidden" name="dugum_id" value="{{ d.id }}">
+     <select name="adim_tanim_id" class="form-control" style="max-width:200px;padding:2px;" required><option value="">＋ Operasyon…</option>{% for k in katalog %}<option value="{{ k.id }}">{{ k.ad }}</option>{% endfor %}</select><button class="btn btn-outline" style="padding:2px 8px;">Ekle</button></form>{% endif %}</td>
+ {% if yonetici %}<td>{% if d.tur != 'Ürün' %}<form method="POST"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="dugum_sil"><input type="hidden" name="dugum_id" value="{{ d.id }}"><button class="btn btn-outline" style="padding:1px 6px;" onclick="return confirm('Düğüm silinsin mi?')">🗑</button></form>{% endif %}</td>{% endif %}</tr>{% endfor %}
+</tbody></table></div></div>
+{% if yonetici %}
+<div class="section-card"><div class="section-header"><span class="section-title">＋ Düğüm ekle (yarı mamul / hammadde)</span></div><div class="section-body">
+<form method="POST" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;align-items:end;"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="dugum_ekle">
+ <div class="form-group" style="margin:0;"><label class="form-label">Bağlanacağı üst düğüm</label><select name="ust_id" class="form-control">{% for d in dugumler if d.tur != 'Hammadde' %}<option value="{{ d.id }}">{{ d.ad }} ({{ d.tur }})</option>{% endfor %}</select></div>
+ <div class="form-group" style="margin:0;"><label class="form-label">Tür</label><select name="tur" class="form-control">{% for t in turler %}<option>{{ t }}</option>{% endfor %}</select></div>
+ <div class="form-group" style="margin:0;"><label class="form-label">Ad *</label><input name="ad" class="form-control" required maxlength="200"></div>
+ <div class="form-group" style="margin:0;"><label class="form-label">Kod</label><input name="kod" class="form-control" maxlength="80"></div>
+ <div class="form-group" style="margin:0;"><label class="form-label">Miktar</label><input name="miktar" class="form-control" maxlength="40" placeholder="ör. 2 adet / 12 g"></div>
+ <button class="btn btn-primary" type="submit">Ekle</button></form></div></div>{% endif %}
+{% endblock %}

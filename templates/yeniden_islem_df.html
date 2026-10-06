@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Yeniden İşlem — Düzeltici Faaliyet{% endblock %}
+{% block breadcrumb %}<span class="separator">›</span><a href="{{ url_for('yeniden_islem_liste') }}">Yeniden İşlem</a><span class="separator">›</span><span>Düzeltici faaliyet</span>{% endblock %}
+{% block content %}
+<div class="mb-16 d-flex align-center justify-between" style="flex-wrap:wrap;gap:10px;"><div><h2 style="font-size:20px;font-weight:700;">🛠️ Düzeltici Faaliyet Notları</h2>
+  <p class="text-muted" style="font-size:13px;">Yeniden işleme yol açan uygunsuzlukların kök neden ve aksiyon notları. Resmî düzeltici faaliyet için DYS DÖF modülünü kullanın.</p></div><a href="{{ url_for('yeniden_islem_liste') }}" class="btn btn-outline">⬅️ Liste</a></div>
+<div class="section-card mb-16"><div class="section-body" style="padding:0;overflow-x:auto;">
+{% if liste %}<table class="data-table"><thead><tr><th>Tarih</th><th>Ürün</th><th>Uygunsuzluk</th><th>Acil önlem</th><th>Kök neden</th><th>Planlanan aksiyon</th><th>Sorumlu</th><th>Hedef</th><th>Gerçekleşen</th>{% if yonetici %}<th></th>{% endif %}</tr></thead><tbody>
+{% for x in liste %}<tr style="vertical-align:top;font-size:13px;"><td>{{ x.tarih or '' }}</td><td><b>{{ x.urun or '' }}</b></td><td>{{ x.uygunsuzluk or '' }}</td><td>{{ x.acil_onlem or '' }}</td><td>{{ x.kok_neden or '' }}</td><td>{{ x.planlanan or '' }}</td><td>{{ x.sorumlu or '' }}</td>
+  <td>{{ x.hedef_tarih.strftime('%d.%m.%Y') if x.hedef_tarih else '' }}</td><td>{{ x.gerceklesen or '' }}{% if x.gerceklesen_tarih %}<br><small>{{ x.gerceklesen_tarih.strftime('%d.%m.%Y') }}</small>{% endif %}</td>
+  {% if yonetici %}<td><form method="POST"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="sil"><input type="hidden" name="id" value="{{ x.id }}"><button class="btn btn-outline" style="padding:0 6px;" onclick="return confirm('Silinsin mi?')">🗑</button></form></td>{% endif %}</tr>{% endfor %}</tbody></table>
+{% else %}<p class="text-muted" style="padding:16px;">Kayıt yok.</p>{% endif %}</div></div>
+{% if yazabilir %}<details class="section-card"><summary class="section-header" style="cursor:pointer;"><span class="section-title">＋ Yeni not</span></summary><div class="section-body">
+<form method="POST" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+ <div class="form-group"><label class="form-label">Tarih</label><input type="date" name="tarih_d" class="form-control"></div><div class="form-group"><label class="form-label">Ürün</label><input name="urun" class="form-control"></div>
+ <div class="form-group"><label class="form-label">Sorumlu</label><input name="sorumlu" class="form-control"></div><div class="form-group"><label class="form-label">Hedef tarih</label><input type="date" name="hedef_tarih" class="form-control"></div>
+ <div class="form-group" style="grid-column:1/-1;"><label class="form-label">Uygunsuzluk</label><input name="uygunsuzluk" class="form-control"></div><div class="form-group" style="grid-column:1/-1;"><label class="form-label">Acil önlem</label><input name="acil_onlem" class="form-control"></div>
+ <div class="form-group" style="grid-column:1/-1;"><label class="form-label">Kök neden</label><input name="kok_neden" class="form-control"></div><div class="form-group" style="grid-column:1/-1;"><label class="form-label">Planlanan aksiyon</label><input name="planlanan" class="form-control"></div>
+ <div class="form-group" style="grid-column:1/-1;"><label class="form-label">Gerçekleşen aksiyon</label><input name="gerceklesen" class="form-control"></div><div class="form-group"><label class="form-label">Gerçekleşen tarih</label><input type="date" name="gerceklesen_tarih" class="form-control"></div>
+ <button class="btn btn-primary" type="submit" style="align-self:end;">Ekle</button></form></div></details>{% endif %}
+{% endblock %}

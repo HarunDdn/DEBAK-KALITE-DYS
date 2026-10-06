@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Ürün Prosesi{% endblock %}
+{% block breadcrumb %}<span class="separator">›</span><span>Ürün Prosesi</span>{% endblock %}
+{% block content %}
+<div class="mb-16 d-flex align-center justify-between" style="flex-wrap:wrap;gap:10px;">
+  <div><h2 style="font-size:20px;font-weight:700;">📑 PPAP · Ürün Prosesi <span class="text-muted" style="font-size:13px;font-weight:400;">İş Akışı · FMEA · Kontrol Planı · Ölçü</span></h2>
+    <p class="text-muted" style="font-size:13px;">Müşteri → ürün → ürün ağacı + operasyonlar → PPAP dosyası (iş akışı, FMEA, kontrol planı otomatik). Operatör yalnız ölçü girer.</p></div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;"><a href="{{ url_for('urun_proses_kutuphane') }}" class="btn btn-outline">📚 Operasyon kütüphanesi (FMEA · Kontrol planı)</a></div>
+</div>
+<form method="GET" class="filters-bar mb-16" style="gap:8px;flex-wrap:wrap;">
+  <select name="musteri" class="filter-select" onchange="this.form.submit()"><option value="">Tüm müşteriler</option>{% for m in musteriler %}<option {% if musteri == m %}selected{% endif %}>{{ m }}</option>{% endfor %}</select>
+  <input name="q" value="{{ q }}" class="form-control" style="max-width:260px;" placeholder="Ara: ürün, kod, müşteri"><button class="btn btn-outline" type="submit">Ara</button>
+</form>
+<div class="section-card mb-16"><div class="section-body" style="padding:0;overflow-x:auto;">
+  {% if liste %}
+  <table class="data-table"><thead><tr><th>Müşteri</th><th>Ürün</th><th>Kod</th><th>Proses adımı</th><th>Ölçü kaydı</th><th></th></tr></thead><tbody>
+  {% for u in liste %}<tr style="cursor:pointer;" onclick="location.href='{{ url_for('urun_ppap', uid=u.id) }}'"><td>{{ u.musteri }}</td><td><a href="{{ url_for('urun_ppap', uid=u.id) }}" style="font-weight:600;">{{ u.urun_adi }}</a></td><td>{{ u.urun_kodu or '—' }}</td>
+    <td>{{ adim_sayi.get(u.id, 0) }}</td><td>{{ olc.get(u.id, 0) }}</td><td><a href="{{ url_for('urun_ppap', uid=u.id) }}" class="btn btn-outline" style="font-size:12px;padding:2px 10px;" onclick="event.stopPropagation()">📑 PPAP</a> <a href="{{ url_for('urun_proses_olcum', uid=u.id) }}" class="btn btn-primary" style="font-size:12px;padding:2px 10px;" onclick="event.stopPropagation()">📏 Ölçü gir</a></td></tr>{% endfor %}
+  </tbody></table>
+  {% else %}<p class="text-muted" style="padding:16px;">Henüz ürün prosesi yok.{% if yonetici %} Aşağıdan ekleyin.{% endif %}</p>{% endif %}
+</div></div>
+{% if yonetici %}
+<div class="section-card"><div class="section-header"><span class="section-title">＋ Yeni ürün prosesi</span></div><div class="section-body">
+  <form method="POST"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;">
+      <div class="form-group"><label class="form-label">Müşteri *</label><input name="musteri" list="up-m" class="form-control" required value="{{ musteri }}"><datalist id="up-m">{% for m in musteriler %}<option value="{{ m }}">{% endfor %}</datalist></div>
+      <div class="form-group"><label class="form-label">FMEA standardı</label><select name="fmea_standart" class="form-control"><option value="">Otomatik (Valeo → GSI-RD-370, diğer → AIAG-VDA)</option><option value="GSI">GSI-RD-370 (Valeo)</option><option value="VDA">AIAG-VDA (standart)</option></select></div>
+      <div class="form-group"><label class="form-label">Ürün adı *</label><input name="urun_adi" class="form-control" required></div>
+      <div class="form-group"><label class="form-label">Ürün kodu</label><input name="urun_kodu" class="form-control"></div>
+      {% if teknik %}<div class="form-group"><label class="form-label">Teknik resim (isteğe bağlı)</label><select name="teknik_resim_id" class="form-control"><option value="">—</option>{% for i, ad in teknik %}<option value="{{ i }}">{{ ad }}</option>{% endfor %}</select></div>{% endif %}
+    </div>
+    <button class="btn btn-primary" type="submit">Oluştur</button>
+  </form></div></div>
+{% endif %}
+{% endblock %}

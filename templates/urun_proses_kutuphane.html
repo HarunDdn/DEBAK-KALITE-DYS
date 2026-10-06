@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Proses Adımı Kataloğu{% endblock %}
+{% block breadcrumb %}<span class="separator">›</span><a href="{{ url_for('urun_proses_liste') }}">Ürün Prosesi</a><span class="separator">›</span><span>Adım kataloğu ve şablonlar</span>{% endblock %}
+{% block content %}
+{% include '_up_editor.html' %}
+<div class="mb-16 d-flex align-center justify-between" style="flex-wrap:wrap;gap:10px;">
+  <div><h2 style="font-size:20px;font-weight:700;">📚 Proses Adımı Kataloğu ve Şablonlar</h2>
+    <p class="text-muted" style="font-size:13px;">Her adım için bir kez tanımlanan <b>FMEA şablonu</b> (genel hata zincirleri) ve <b>kontrol planı şablonu</b> (karakteristik listesi), o adımı proses akışına ekleyen her üründe otomatik gelir.</p></div>
+  <div><span id="up-sav" class="up-sav"></span> <a href="{{ url_for('urun_proses_liste') }}" class="btn btn-outline">⬅️ Ürünler</a></div>
+</div>
+<div class="section-card mb-16"><div class="section-body">
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+    {% for k in katalog %}<span style="display:inline-flex;align-items:center;gap:2px;"><a href="{{ url_for('urun_proses_kutuphane', adim=k.id, std=std) }}" class="btn {{ 'btn-primary' if adim and adim.id == k.id else 'btn-outline' }}" style="{{ 'opacity:.5;' if k.aktif == false }}">{{ loop.index }}. {{ k.ad }}</a>
+      {% if yonetici %}<form method="POST" style="display:inline;"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="adim_id" value="{{ k.id }}"><input type="hidden" name="std" value="{{ std }}"><button name="action" value="yukari" class="btn btn-outline" style="padding:1px 5px;" title="Yukarı">◀</button><button name="action" value="asagi" class="btn btn-outline" style="padding:1px 5px;" title="Aşağı">▶</button><button name="action" value="pasif" class="btn btn-outline" style="padding:1px 5px;" title="Aktif / pasif">{{ '🚫' if k.aktif != false else '✔' }}</button></form>{% endif %}</span>{% endfor %}
+  </div>
+  {% if yonetici %}<form method="POST" style="margin-top:10px;display:flex;gap:8px;"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="adim_ekle"><input type="hidden" name="std" value="{{ std }}"><input name="ad" class="form-control" style="max-width:260px;" placeholder="Yeni adım adı (ör. Ultrasonik yıkama)"><button class="btn btn-outline" type="submit">＋ Adım ekle</button></form>{% endif %}
+</div></div>
+<div class="section-card mb-16" style="border-left:4px solid {{ '#1d4ed8' if std == 'VDA' else '#b91c1c' }};"><div class="section-body" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+  <b style="font-size:13px;">FMEA standardı:</b>
+  {% for k, ad in standartlar.items() %}<a href="{{ url_for('urun_proses_kutuphane', adim=adim.id if adim else '', std=k) }}" class="btn {{ 'btn-primary' if std == k else 'btn-outline' }}">{{ ad }}</a>{% endfor %}
+  <span class="text-muted" style="font-size:12px;">{% if std == 'GSI' %}Valeo müşterisi: puanlar GSI-RD-370 kısıtlı kümelerinden, AP yalnız GSI matrisinden.{% else %}Standart VDA-FMEA (AIAG-VDA 2019): 1–10 puan, AP standart Action Priority tablosundan. GSI kütüphanesinden ayrı yürür.{% endif %}</span></div></div>
+{% if adim %}
+<div class="section-card mb-16"><div class="section-header"><span class="section-title">⚠️ {{ adim.ad }} — FMEA şablonu (P-FMEA, {{ standartlar[std] }})</span><span class="text-muted" style="font-size:12px;">Bu adımı kullanan tüm ürünlerde salt okunur olarak otomatik görünür</span></div>
+  <div class="section-body"><div id="fm"></div></div></div>
+<div class="section-card mb-16"><div class="section-header"><span class="section-title">📋 {{ adim.ad }} — kontrol planı şablonu</span><span class="text-muted" style="font-size:12px;">Adım ürüne eklenince satırlar kopyalanır; nominal / tolerans ürüne özgü girilir</span></div>
+  <div class="section-body"><div id="kp"></div></div></div>
+<script>
+const FM={{ fmea|tojson }}, KP={{ kp|tojson }}, TID={{ adim.id }};
+upTablo(document.getElementById('fm'),'fmea',FM,{tid:TID,up:'',std:{{ std|tojson }},edit:{{ 'true' if yonetici else 'false' }}});
+upTablo(document.getElementById('kp'),'kp',KP,{tid:TID,up:'',edit:{{ 'true' if yonetici else 'false' }},fmeaOpt:()=>FM.map(r=>[r.id,(r.mode||'(hata modu yok)').slice(0,40)+(r.ap?' · '+UPAD[r.ap]:'')])});
+</script>
+{% endif %}
+<p class="text-muted" style="font-size:12px;">Derecelendirmeler yönlendirme amaçlıdır; AP yalnız matristen hesaplanır, RPN yalnız bilgidir. Nihai karar FMEA ekibine aittir.</p>
+{% endblock %}

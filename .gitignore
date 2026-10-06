@@ -32,3 +32,4 @@ _final_verify.txt
 
 # VALEO Restricted (GSI-RD-370) kriter metinleri - izin olmadan herkese acik depoya konmaz
 data/fmea_kriterleri.json
+data/fmea_modul.html

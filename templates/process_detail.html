@@ -1,192 +1,160 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 {% block title %}{{ process.kod }} {{ process.ad }}{% endblock %}
+{% block head %}{% include "_surec_css.html" %}
+<style>
+.sd-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+.sd-top h2{font-size:20px;font-weight:700;margin:0}
+.sd-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin-bottom:16px}
+.sd-tile{border:1px solid var(--border-color);background:var(--bg-card);border-radius:10px;padding:10px 12px;text-decoration:none;color:var(--text-primary);display:block}
+.sd-tile b{display:block;font-size:20px;line-height:1.2}
+.sd-tile span{font-size:11.5px;color:var(--text-muted)}
+.sd-tile.on{border-color:var(--accent-primary);background:var(--accent-glow)}
+.sd-sec{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);margin:0 0 8px}
+.sd-chips{display:flex;flex-wrap:wrap;gap:6px}
+.sd-chip{font-size:12px;padding:5px 10px;border-radius:999px;border:1px solid var(--border-color);background:var(--bg-glass);color:var(--text-secondary);text-decoration:none;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sd-chip:hover{color:var(--text-primary);border-color:var(--border-hover)}
+.sd-chip.on{border-color:var(--accent-primary);color:var(--text-primary);background:var(--accent-glow)}
+.sd-chip i{font-style:normal;color:var(--text-muted);margin-left:4px}
+.sd-mod{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px}
+.sd-mod a{display:block;border:1px solid var(--border-color);border-radius:8px;padding:8px 10px;text-decoration:none;color:var(--text-primary);background:var(--bg-glass);font-size:12.5px}
+.sd-mod a:hover{border-color:var(--accent-primary)}
+.sd-mod small{display:block;color:var(--text-muted);font-size:11px;margin-top:2px}
+.sd-grp{margin-bottom:16px}
+.sd-grp-h{display:flex;justify-content:space-between;align-items:baseline;padding:10px 16px;border-bottom:1px solid var(--border-color);font-weight:700;font-size:13.5px}
+.sd-grp-h small{font-weight:400;color:var(--text-muted)}
+.sd-filter{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+@media (max-width:640px){.sd-hide-sm{display:none}}
+</style>
+{% endblock %}
 
 {% block breadcrumb %}
 <span class="separator">›</span>
-<a href="{{ request.script_root }}/processes">Süreçler</a>
+<a href="{{ request.script_root }}/processes">Süreç Haritası</a>
 <span class="separator">›</span>
 <span>{{ process.kod }} {{ process.ad }}</span>
 {% endblock %}
 
 {% block content %}
-<div class="d-flex align-center justify-between mb-24">
+{% set kat = (process.kategori or 'destek')|lower %}
+{% set kat = 'yonetim' if kat.startswith('y') else ('ana' if kat.startswith('a') else 'destek') %}
+{% set suz = request.args.get('tip') or request.args.get('durum') or request.args.get('guvenlik') or request.args.get('search') %}
+{% set qs_alt = ('&alt=' ~ secili_alt) if secili_alt else '' %}
+<div class="sd-top">
     <div>
-        <div class="d-flex align-center gap-8 mb-8">
-            <span class="process-code" style="font-size: 13px; padding: 4px 10px; 
-                background: var(--cat-{{ process.kategori|lower }}-bg); 
-                color: var(--cat-{{ process.kategori|lower }}); 
-                border-radius: 6px; font-weight: 700;">{{ process.kod }}</span>
-            <h2 style="font-size: 20px; font-weight: 700;">{{ process.ad }}</h2>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px;">
+            <span class="sh-kod" style="--sh-c:var(--cat-{{ kat }});font-size:13px;">{{ process.kod }}</span>
+            <h2>{{ process.ad }}</h2>
+            {% if not process.aktif_mi %}<span class="status-badge gray">Pasif (eski yapı)</span>{% endif %}
         </div>
-        <div class="d-flex align-center gap-16">
-            <span class="text-muted" style="font-size: 13px;">Kategori: <strong style="color: var(--text-primary);">{{ process.kategori }} Süreç</strong></span>
-            {% if process.sorumlu %}
-            <span class="text-muted" style="font-size: 13px;">Sorumlu: <strong style="color: var(--text-primary);">{{ process.sorumlu }}</strong></span>
-            {% endif %}
+        <div class="text-muted" style="font-size:13px;display:flex;gap:16px;flex-wrap:wrap;">
+            {% if process.ust_surec %}<span>Üst süreç: <a href="{{ request.script_root }}/processes/{{ process.ust_surec.id }}">{{ process.ust_surec.kod }} {{ process.ust_surec.ad }}</a></span>{% endif %}
+            {% if process.sorumlu %}<span>Sorumlu: <strong style="color:var(--text-primary);">{{ process.sorumlu }}</strong></span>{% endif %}
+            {% if process.ilgili_standartlar %}<span>Standartlar: {{ process.ilgili_standartlar }}</span>{% endif %}
         </div>
+        {% if process.aciklama %}<p class="text-muted" style="font-size:13px;margin-top:6px;max-width:760px;">{{ process.aciklama }}</p>{% endif %}
     </div>
-    <a href="{{ request.script_root }}/documents/new?surec_id={{ process.id }}" class="btn btn-primary">
-        ➕ Doküman Ekle
-    </a>
+    <a href="{{ request.script_root }}/documents/new?surec_id={{ process.id }}" class="btn btn-primary">➕ Doküman Ekle</a>
 </div>
 
-<!-- İlgili Standartlar -->
-{% if process.ilgili_standartlar %}
-<div class="compliance-banner mb-24">
-    <span class="banner-icon">🛡️</span>
-    <span class="banner-text">Bu süreç aşağıdaki standartlarla ilişkilidir:</span>
-    <div class="banner-standards">
-        {% for std in process.ilgili_standartlar.split(',') %}
-        {% set std = std.strip() %}
-        {% if 'IATF' in std %}<span class="std-badge iatf">{{ std }}</span>
-        {% elif '14001' in std %}<span class="std-badge iso14001">{{ std }}</span>
-        {% elif '45001' in std %}<span class="std-badge iso45001">{{ std }}</span>
-        {% elif '27001' in std %}<span class="std-badge iso27001">{{ std }}</span>
-        {% endif %}
-        {% endfor %}
-    </div>
-</div>
-{% endif %}
-
-<!-- Stats -->
-<div class="stats-grid mb-24">
-    <div class="stat-card">
-        <div class="stat-icon blue">📄</div>
-        <div class="stat-value">{{ tum_docs|length }}</div>
-        <div class="stat-label">Toplam Doküman</div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-icon green">✅</div>
-        <div class="stat-value">{{ tum_docs|selectattr('durum', 'equalto', 'Onaylı')|list|length }}</div>
-        <div class="stat-label">Onaylı</div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-icon yellow">⏳</div>
-        <div class="stat-value">{{ tum_docs|selectattr('durum', 'equalto', 'İncelemede')|list|length }}</div>
-        <div class="stat-label">İncelemede</div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-icon red">📝</div>
-        <div class="stat-value">{{ tum_docs|selectattr('durum', 'equalto', 'Taslak')|list|length }}</div>
-        <div class="stat-label">Taslak</div>
-    </div>
-</div>
-
-<!-- Filters -->
-<div class="section-card mb-16">
-    <div class="section-body" style="padding: 12px 16px;">
-        <form method="GET" action="{{ request.script_root }}/processes/{{ process.id }}" class="filters-bar">
-            {% if secili_alt %}<input type="hidden" name="alt" value="{{ secili_alt }}">{% endif %}
-            <div class="filter-group">
-                <label class="filter-label">Süreç:</label>
-                <select name="surec" class="filter-select"
-                        onchange="window.location.href='{{ request.script_root }}/processes/' + this.value">
-                    {% for p in processes %}
-                    <option value="{{ p.id }}" {{ 'selected' if p.id == process.id }}>{{ p.kod }} - {{ p.ad }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="filter-group">
-                <label class="filter-label">Tip:</label>
-                <select name="tip" class="filter-select" onchange="this.form.submit()">
-                    <option value="">Tümü</option>
-                    {% for tip in ['Politika', 'El Kitabı', 'Prosedür', 'İş Akışı', 'Talimat', 'Plan', 'Spesifikasyon', 'Form', 'Liste', 'Dış Kaynaklı Doküman'] %}
-                    <option value="{{ tip }}" {{ 'selected' if request.args.get('tip') == tip }}>{{ tip }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="filter-group">
-                <label class="filter-label">Durum:</label>
-                <select name="durum" class="filter-select" onchange="this.form.submit()">
-                    <option value="">Tümü</option>
-                    {% for d in ['Taslak', 'İncelemede', 'Onaylı', 'İptal', 'Eskimiş'] %}
-                    <option value="{{ d }}" {{ 'selected' if request.args.get('durum') == d }}>{{ d }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="filter-group">
-                <label class="filter-label">Güvenlik:</label>
-                <select name="guvenlik" class="filter-select" onchange="this.form.submit()">
-                    <option value="">Tümü</option>
-                    {% for g in ['Gizli', 'Hizmete Özel', 'Genel'] %}
-                    <option value="{{ g }}" {{ 'selected' if request.args.get('guvenlik') == g }}>{{ g }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="filter-group">
-                <input type="text" name="search" class="filter-search" placeholder="🔍 Ara..." value="{{ request.args.get('search', '') }}">
-            </div>
-            {% if request.args.get('tip') or request.args.get('durum') or request.args.get('guvenlik') or request.args.get('search') %}
-            <a href="{{ request.script_root }}/processes/{{ process.id }}" class="btn btn-sm btn-outline">✕ Temizle</a>
-            {% endif %}
-        </form>
-    </div>
+{# Tip sayaçları: aynı zamanda tip filtresi #}
+<div class="sd-tiles">
+    <a class="sd-tile {{ 'on' if not request.args.get('tip') }}" href="{{ request.script_root }}/processes/{{ process.id }}{{ '?' ~ qs_alt[1:] if qs_alt }}"><b>{{ toplam_say.toplam }}</b><span>Tüm dokümanlar</span></a>
+    {% for t in tipler %}
+    <a class="sd-tile {{ 'on' if request.args.get('tip') == t }}" href="?tip={{ t|urlencode }}{{ qs_alt }}"><b>{{ toplam_say[t] }}</b><span>{{ t }}</span></a>
+    {% endfor %}
+    {% if toplam_say['Diğer'] %}<div class="sd-tile"><b>{{ toplam_say['Diğer'] }}</b><span>Diğer</span></div>{% endif %}
 </div>
 
 {% if alt_surecler %}
 <div class="section-card mb-16">
-    <div class="section-body" style="padding: 10px 16px; display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
-        <span class="filter-label">Alt süreç:</span>
-        <a href="{{ request.script_root }}/processes/{{ process.id }}" class="btn btn-sm {{ 'btn-primary' if not secili_alt else 'btn-outline' }}">Tümü</a>
-        <a href="{{ request.script_root }}/processes/{{ process.id }}?alt={{ process.id }}" class="btn btn-sm {{ 'btn-primary' if secili_alt == process.id|string else 'btn-outline' }}">{{ process.kod }} (ana)</a>
-        {% for a in alt_surecler %}
-        <a href="{{ request.script_root }}/processes/{{ process.id }}?alt={{ a.id }}" class="btn btn-sm {{ 'btn-primary' if secili_alt == a.id|string else 'btn-outline' }}" title="{{ a.ad }}">{{ a.kod }} {{ a.ad }} ({{ tum_docs|selectattr('surec_id', 'equalto', a.id)|list|length }})</a>
-        {% endfor %}
+    <div class="section-body" style="padding:12px 16px;">
+        <p class="sd-sec">Alt süreçler</p>
+        <div class="sd-chips">
+            <a class="sd-chip {{ 'on' if not secili_alt }}" href="{{ request.script_root }}/processes/{{ process.id }}">Tümü<i>{{ toplam_say.toplam }}</i></a>
+            <a class="sd-chip {{ 'on' if secili_alt == process.id|string }}" href="?alt={{ process.id }}">{{ process.kod }} (ana)<i>{{ alt_say[process.id].toplam }}</i></a>
+            {% for a in alt_surecler %}
+            <a class="sd-chip {{ 'on' if secili_alt == a.id|string }}" href="?alt={{ a.id }}" title="{{ a.kod }} {{ a.ad }}">{{ a.kod }} {{ a.ad }}<i>{{ alt_say[a.id].toplam }}</i></a>
+            {% endfor %}
+        </div>
+        <p class="text-muted" style="font-size:11.5px;margin-top:8px;">Alt sürecin kendi sayfasına geçmek için: {% for a in alt_surecler %}<a href="{{ request.script_root }}/processes/{{ a.id }}">{{ a.kod }}</a>{{ ' · ' if not loop.last }}{% endfor %}</p>
     </div>
 </div>
 {% endif %}
 
-<!-- Document List -->
-<div class="section-card">
-    <div class="section-header">
-        <span class="section-title">📄 Süreç Dokümanları</span>
-        <span class="text-muted" style="font-size: 13px;">{{ filtered_docs|length }} doküman{% if not request.args.get('durum') and not request.args.get('eskiler') %} · <a href="?eskiler=1{{ '&alt=' ~ secili_alt if secili_alt else '' }}">eskimiş/iptal olanları da göster</a>{% endif %}</span>
+{% if moduller %}
+<div class="section-card mb-16">
+    <div class="section-body" style="padding:12px 16px;">
+        <p class="sd-sec">Bağlı DYS modülleri</p>
+        <div class="sd-mod">
+            {% for m in moduller %}
+            <a href="{{ request.script_root }}{{ m.yol }}"><strong>{{ m.baslik }}</strong><small>{{ m.standart }}{% if m.madde %} · madde {{ m.madde }}{% endif %} · {{ m.n }} bağlı doküman</small></a>
+            {% endfor %}
+        </div>
     </div>
-    {% if filtered_docs %}
+</div>
+{% endif %}
+
+<div class="section-card mb-16">
+    <div class="section-body" style="padding:10px 16px;">
+        <form method="GET" action="{{ request.script_root }}/processes/{{ process.id }}" class="sd-filter">
+            {% if secili_alt %}<input type="hidden" name="alt" value="{{ secili_alt }}">{% endif %}
+            {% if request.args.get('tip') %}<input type="hidden" name="tip" value="{{ request.args.get('tip') }}">{% endif %}
+            <select name="durum" class="filter-select" onchange="this.form.submit()" title="Durum">
+                <option value="">Tüm durumlar</option>
+                {% for d in ['Taslak', 'İncelemede', 'Onaylı', 'İptal', 'Eskimiş'] %}
+                <option value="{{ d }}" {{ 'selected' if request.args.get('durum') == d }}>{{ d }}</option>
+                {% endfor %}
+            </select>
+            <select name="guvenlik" class="filter-select" onchange="this.form.submit()" title="Güvenlik sınıfı">
+                <option value="">Tüm güvenlik sınıfları</option>
+                {% for g in ['Gizli', 'Hizmete Özel', 'Genel'] %}
+                <option value="{{ g }}" {{ 'selected' if request.args.get('guvenlik') == g }}>{{ g }}</option>
+                {% endfor %}
+            </select>
+            <input type="text" name="search" class="filter-search" placeholder="🔍 Doküman ara..." value="{{ request.args.get('search', '') }}">
+            {% if suz %}<a href="{{ request.script_root }}/processes/{{ process.id }}{{ '?' ~ qs_alt[1:] if qs_alt }}" class="btn btn-sm btn-outline">✕ Temizle</a>{% endif %}
+            <span class="text-muted" style="font-size:12px;margin-left:auto;">{{ filtered_docs|length }} doküman{% if not request.args.get('durum') and not request.args.get('eskiler') %} · <a href="?eskiler=1{{ qs_alt }}">eskimiş/iptal dahil</a>{% endif %}</span>
+        </form>
+    </div>
+</div>
+
+{% if gruplar %}
+{% for tip, liste in gruplar %}
+<div class="section-card sd-grp">
+    <div class="sd-grp-h"><span>{{ tip|enum }}</span><small>{{ liste|length }} doküman</small></div>
     <div class="data-table-wrapper">
         <table class="data-table">
-            <thead>
-                <tr>
-                    <th>Doküman No</th>
-                    {% if alt_surecler %}<th>Alt Süreç</th>{% endif %}
-                    <th>Başlık</th>
-                    <th>Tip</th>
-                    <th>Revizyon</th>
-                    <th>Durum</th>
-                    <th>Güvenlik</th>
-                    <th>Son Güncelleme</th>
-                    <th></th>
-                </tr>
-            </thead>
+            <thead><tr>
+                <th>Doküman No</th>
+                <th>Başlık</th>
+                {% if alt_surecler %}<th class="sd-hide-sm">Alt süreç</th>{% endif %}
+                <th>Rev.</th>
+                <th>Durum</th>
+                <th class="sd-hide-sm">Güvenlik</th>
+                <th class="sd-hide-sm">Güncelleme</th>
+            </tr></thead>
             <tbody>
-                {% for doc in filtered_docs %}
-                <tr>
-                    <td><code style="color: var(--text-accent);">{{ doc.dokuman_no }}</code></td>
-                    {% if alt_surecler %}<td class="text-muted" style="font-size:12px;">{{ doc.surec.kod if doc.surec else '' }}</td>{% endif %}
-                    <td>
-                        <a href="{{ request.script_root }}/documents/{{ doc.id }}" style="color: var(--text-primary); font-weight: 600;">{{ doc.baslik }}</a>
-                    </td>
-                    <td>{{ doc.dokuman_tipi }}</td>
-                    <td class="text-center">Rev. {{ doc.revizyon_no }}</td>
-                    <td>
-                        <span class="status-badge {{ doc.durum|slug }}">{{ doc.durum|enum }}</span>
-                    </td>
-                    <td>
-                        <span class="sec-badge {{ doc.guvenlik_sinifi|slug }}">{{ doc.guvenlik_sinifi|enum }}</span>
-                    </td>
-                    <td class="text-muted">{{ doc.guncelleme_tarihi.strftime('%d.%m.%Y') if doc.guncelleme_tarihi else '-' }}</td>
-                    <td>
-                        <a href="{{ request.script_root }}/documents/{{ doc.id }}" class="btn btn-sm btn-outline">Detay</a>
-                    </td>
-                </tr>
-                {% endfor %}
+            {% for doc in liste %}
+            <tr>
+                <td><code style="color:var(--text-accent);white-space:nowrap;">{{ doc.dokuman_no }}</code></td>
+                <td><a href="{{ request.script_root }}/documents/{{ doc.id }}" style="color:var(--text-primary);font-weight:600;">{{ doc.baslik }}</a></td>
+                {% if alt_surecler %}<td class="text-muted sd-hide-sm" style="font-size:12px;">{{ doc.surec.kod if doc.surec else '' }}</td>{% endif %}
+                <td class="text-center">{{ doc.revizyon_no }}</td>
+                <td><span class="status-badge {{ doc.durum|slug }}">{{ doc.durum|enum }}</span></td>
+                <td class="sd-hide-sm"><span class="sec-badge {{ doc.guvenlik_sinifi|slug }}">{{ doc.guvenlik_sinifi|enum }}</span></td>
+                <td class="text-muted sd-hide-sm">{{ doc.guncelleme_tarihi.strftime('%d.%m.%Y') if doc.guncelleme_tarihi else '-' }}</td>
+            </tr>
+            {% endfor %}
             </tbody>
         </table>
     </div>
-    {% else %}
+</div>
+{% endfor %}
+{% else %}
+<div class="section-card">
     <div class="empty-state">
         <div class="empty-icon">📄</div>
-        {% if request.args.get('tip') or request.args.get('durum') or request.args.get('guvenlik') or request.args.get('search') %}
+        {% if suz %}
         <h3>Sonuç bulunamadı</h3>
         <p>Seçtiğiniz filtrelere uygun doküman yok.</p>
         <a href="{{ request.script_root }}/processes/{{ process.id }}" class="btn btn-secondary">Filtreleri Temizle</a>
@@ -196,7 +164,6 @@
         <a href="{{ request.script_root }}/documents/new?surec_id={{ process.id }}" class="btn btn-primary">İlk Dokümanı Ekle</a>
         {% endif %}
     </div>
-    {% endif %}
 </div>
+{% endif %}
 {% endblock %}
-

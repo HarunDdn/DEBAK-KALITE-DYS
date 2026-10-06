@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% from "_ppap_akis.html" import akis, stil %}
+{% block title %}PPAP — {{ u.urun_adi }}{% endblock %}
+{% block breadcrumb %}<span class="separator">›</span><a href="{{ url_for('urun_proses_liste') }}">Ürün Prosesi</a><span class="separator">›</span><span>PPAP — {{ u.urun_adi }}</span>{% endblock %}
+{% block content %}
+{{ stil() }}
+<style>.pp-t{width:100%;border-collapse:collapse;font-size:12.5px;}.pp-t th,.pp-t td{border:1px solid var(--border);padding:5px 7px;vertical-align:top;text-align:left;}.pp-t th{background:var(--bg-secondary);font-size:11px;text-transform:uppercase;}
+.pp-op{font-weight:700;margin:14px 0 4px;}.pp-H{background:#fde2e2;color:#b91c1c;font-weight:800;}.pp-M{background:#fff1c2;color:#92600a;font-weight:800;}.pp-L{background:#d9f2e0;color:#166534;font-weight:800;}
+.pp-k{display:inline-block;padding:2px 9px;border-radius:12px;background:var(--bg-secondary);border:1px solid var(--border);font-size:12px;margin-right:6px;}
+@media print{.no-print{display:none!important;}}</style>
+<div class="mb-16 d-flex align-center justify-between" style="flex-wrap:wrap;gap:10px;">
+  <div><div class="text-muted" style="font-size:12px;">{{ u.musteri }}{% if u.urun_kodu %} · {{ u.urun_kodu }}{% endif %}</div>
+    <h2 style="font-size:20px;font-weight:700;">📑 PPAP dosyası — {{ u.urun_adi }}{% if rev %} <span class="pp-k">Rev {{ rev.rev_no }} · {{ rev.tarih.strftime('%d.%m.%Y') if rev.tarih }}</span>{% elif revler %} <span class="pp-k">Güncel · son yayın Rev {{ revler[0].rev_no }}</span>{% endif %}</h2>
+    <p class="text-muted" style="font-size:13px;">Yaşayan doküman: iş akışı, FMEA ve kontrol planı ürün ağacındaki operasyonlardan otomatik derlenir; şikayet ve mühendislik değişiklikleri canlı gelir.</p></div>
+  <div class="no-print" style="display:flex;gap:8px;flex-wrap:wrap;">
+    {% if rev %}<a href="{{ url_for('urun_ppap', uid=u.id) }}" class="btn btn-primary">Güncel dosya</a>{% endif %}
+    <a href="{{ url_for('urun_proses_agac', uid=u.id) }}" class="btn btn-outline">🌳 Ürün ağacı / operasyonlar</a>
+    <a href="{{ url_for('urun_proses_olcum', uid=u.id) }}" class="btn btn-outline">📏 Ölçü gir</a>
+    <a href="{{ url_for('urun_proses_olcumler', uid=u.id) }}" class="btn btn-outline">📈 Ölçüler</a>
+    <button class="btn btn-outline" onclick="window.print()">🖨️ Yazdır</button></div>
+</div>
+{% if rev %}<div class="section-card mb-16" style="border-left:4px solid #92600a;"><div class="section-body">Bu, <b>Rev {{ rev.rev_no }}</b> anlık görüntüsüdür ({{ kim.get(rev.olusturan_id, '') }}). Neden: {{ rev.neden or '—' }}</div></div>{% endif %}
+{% if degisti %}<div class="section-card mb-16 no-print" style="border-left:4px solid #b91c1c;"><div class="section-body"><b>Son revizyondan sonra değişiklik var.</b> {% if fark %}({{ fark|join(' · ') }}){% else %}(içerik değişti){% endif %} Yeni revizyon oluşturmanız gerekir.</div></div>{% endif %}
+{% if agac %}
+<div class="section-card mb-16"><div class="section-header"><span class="section-title">1. İş akış şeması</span><span class="text-muted" style="font-size:12px;">{{ sayi.get('dugum', 0) }} düğüm · {{ sayi.get('operasyon', 0) }} operasyon</span></div><div class="section-body ak-w">{{ akis(agac) }}</div></div>
+<div class="section-card mb-16"><div class="section-header"><span class="section-title">2. P-FMEA ({{ standartlar[std] }} — operasyonlardan otomatik)</span><span class="text-muted" style="font-size:12px;">{{ sayi.get('fmea', 0) }} satır</span></div><div class="section-body" style="overflow-x:auto;">
+  {% for n in duz %}{% for a in n.adimlar %}
+    <div class="pp-op">{{ n.ad }} › {{ a.ad }}</div>
+    {% if a.fmea %}<table class="pp-t"><thead><tr><th>Fonksiyon</th><th>Hata modu</th><th>Etki</th><th>Neden</th><th>Önleme</th><th>Tespit</th><th>S</th><th>O</th><th>D</th><th>AP</th><th>Aksiyon</th></tr></thead><tbody>
+    {% for f in a.fmea %}<tr><td>{{ f.fn }}</td><td>{{ f.mode }}</td><td>{{ f.eff }}</td><td>{{ f.cause }}</td><td>{{ f.prev }}</td><td>{{ f.det }}</td><td>{{ f.S }}</td><td>{{ f.O }}</td><td>{{ f.D }}</td><td>{% if f.ap in ('H','M','L') %}<span class="pp-{{ f.ap }}">{{ f.ap_ad }}</span>{% endif %}</td><td>{{ f.act }}</td></tr>{% endfor %}</tbody></table>
+    {% else %}<p class="text-muted" style="font-size:12px;">Bu operasyon için FMEA satırı yok — <a href="{{ url_for('urun_proses_kutuphane', adim=a.tanim_id) }}">kütüphanede</a> tanımlayın.</p>{% endif %}
+  {% endfor %}{% endfor %}
+</div></div>
+<div class="section-card mb-16"><div class="section-header"><span class="section-title">3. Kontrol planı (operasyonlardan otomatik)</span><span class="text-muted" style="font-size:12px;">{{ sayi.get('kp', 0) }} satır</span></div><div class="section-body" style="overflow-x:auto;">
+  {% for n in duz %}{% for a in n.adimlar %}
+    <div class="pp-op">{{ n.ad }} › {{ a.ad }}</div>
+    {% if a.kp %}<table class="pp-t"><thead><tr><th>Karakteristik</th><th>Özel</th><th>Nominal</th><th>Alt</th><th>Üst</th><th>Birim</th><th>Ölçüm aracı</th><th>Numune</th><th>Sıklık</th><th>Yöntem</th><th>Reaksiyon planı</th></tr></thead><tbody>
+    {% for k in a.kp %}<tr><td>{{ k.karakteristik }}</td><td>{{ k.ozel }}</td><td>{{ k.nominal }}</td><td>{{ k.alt_limit }}</td><td>{{ k.ust_limit }}</td><td>{{ k.birim }}</td><td>{{ k.olcum_araci }}</td><td>{{ k.numune }}</td><td>{{ k.siklik }}</td><td>{{ k.yontem }}</td><td>{{ k.reaksiyon }}</td></tr>{% endfor %}</tbody></table>
+    {% else %}<p class="text-muted" style="font-size:12px;">Kontrol planı satırı yok.</p>{% endif %}
+  {% endfor %}{% endfor %}
+</div></div>
+{% endif %}
+{% if not rev %}
+<div class="section-card mb-16"><div class="section-header"><span class="section-title">4. Müşteri şikayetleri (canlı)</span><span class="text-muted" style="font-size:12px;">{{ sikayetler|length }} kayıt · ürün kodu / adı eşleşmesi</span></div><div class="section-body" style="padding:0;overflow-x:auto;">
+  {% if sikayetler %}<table class="data-table"><thead><tr><th>No</th><th>Tarih</th><th>Müşteri ref.</th><th>Önem</th><th>Durum</th></tr></thead><tbody>{% for s in sikayetler %}<tr><td><a href="/iatf/musteri-sikayetleri/{{ s.id }}">{{ s.no }}</a></td><td>{{ s.tarih.strftime('%d.%m.%Y') if s.tarih }}</td><td>{{ s.musteri_ref or '' }}</td><td>{{ s.onem or '' }}</td><td>{{ s.durum }}</td></tr>{% endfor %}</tbody></table>
+  {% else %}<p class="text-muted" style="padding:14px;">Bu ürüne ait şikayet kaydı yok.</p>{% endif %}</div></div>
+<div class="section-card mb-16"><div class="section-header"><span class="section-title">5. Mühendislik değişiklikleri (teknik resim revizyonları)</span><span class="text-muted" style="font-size:12px;">{{ degisim|length }} kayıt</span></div><div class="section-body" style="padding:0;overflow-x:auto;">
+  {% if degisim %}<table class="data-table"><thead><tr><th>Resim</th><th>Revizyon</th><th>Tarih</th><th>Durum</th><th>Değişiklik</th><th>PPAP etkisi</th></tr></thead><tbody>{% for d in degisim %}<tr><td>{{ d.resim.resim_no }}</td><td><b>{{ d.rev.revizyon }}</b></td><td>{{ d.rev.revizyon_tarihi.strftime('%d.%m.%Y') if d.rev.revizyon_tarihi }}</td><td>{{ d.rev.durum }}</td><td>{{ d.rev.degisiklik or '' }}</td><td>{{ d.ppap }}</td></tr>{% endfor %}</tbody></table>
+  {% else %}<p class="text-muted" style="padding:14px;">Teknik resim revizyonu / mühendislik değişikliği kaydı yok.</p>{% endif %}
+  {% if ppaplar %}<div style="padding:10px 14px;border-top:1px solid var(--border);font-size:13px;">PPAP başvuruları: {% for p in ppaplar %}<a href="{{ url_for('ppap_detail', ppap_id=p.id) }}" class="pp-k">{{ p.parca_no }} · {{ p.durum }}</a>{% endfor %}</div>{% endif %}</div></div>
+{% endif %}
+<div class="section-card"><div class="section-header"><span class="section-title">6. Revizyonlar</span></div><div class="section-body">
+  {% if revler %}<table class="data-table"><thead><tr><th>Rev</th><th>Tarih</th><th>Neden</th><th>Hazırlayan</th><th></th></tr></thead><tbody>{% for r in revler %}<tr><td><b>{{ r.rev_no }}</b></td><td>{{ r.tarih.strftime('%d.%m.%Y %H:%M') if r.tarih }}</td><td>{{ r.neden or '' }}</td><td>{{ kim.get(r.olusturan_id, '') }}</td><td><a href="{{ url_for('urun_ppap_rev', uid=u.id, no=r.rev_no) }}">Görüntüle</a></td></tr>{% endfor %}</tbody></table>
+  {% else %}<p class="text-muted">Henüz revizyon yok.</p>{% endif %}
+  {% if yonetici and not rev %}<form method="POST" class="no-print" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input name="neden" class="form-control" style="max-width:420px;" maxlength="500" placeholder="{{ 'Revizyon nedeni (zorunlu)' if revler else 'İlk yayın notu (isteğe bağlı)' }}"><button class="btn btn-primary" type="submit">{{ '＋ Yeni revizyon oluştur' if revler else '＋ İlk yayını (Rev 0) oluştur' }}</button></form>{% endif %}</div></div>
+{% endblock %}

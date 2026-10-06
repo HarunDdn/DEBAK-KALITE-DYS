@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
     {% block head %}{% endblock %}
-<style>.nav-section:not(:has(.nav-item)){display:none;}</style>
+<style>.nav-section:not(:has(.nav-item)){display:none;}.nav-item.nav-alt{padding-left:34px;font-size:.92em;opacity:.92;}</style>
 </head>
 <body>
     <a href="#main-content" class="skip-link">{{ _('İçeriğe geç') }}</a>
@@ -74,10 +74,6 @@
                         <span class="nav-badge">{{ pending_approvals }}</span>
                         {% endif %}
                     </a>{% endif %}
-                    {% if modul_acik('nav-ppap') %}<a href="{{ request.script_root }}/ppap" class="nav-item" id="nav-ppap">
-                        <span class="nav-icon">📦</span>
-                        <span>{{ _('PPAP Yönetimi') }}</span>
-                    </a>{{ modul_alt('nav-ppap') }}{% endif %}
                     {% if modul_acik('nav-distributions') %}<a href="{{ request.script_root }}/distributions" class="nav-item" id="nav-distributions">
                         <span class="nav-icon">📨</span>
                         <span>{{ _('Dağıtım') }}</span>
@@ -119,11 +115,48 @@
                     {% if modul_acik('nav-kalite-musteri') %}<a href="{{ request.script_root }}/kalite/musteri" class="nav-item" id="nav-kalite-musteri">
                         <span class="nav-icon">📣</span><span>{{ modul_basligi('nav-kalite-musteri', _('Müşteri Şikayet Listesi')) }}</span>
                     </a>{{ modul_alt('nav-kalite-musteri') }}{% endif %}
+{% if modul_acik('nav-yeniden-islem') %}<a href="{{ request.script_root }}/kalite/yeniden-islem" class="nav-item" id="nav-yeniden-islem">
+<span class="nav-icon">♻️</span><span>{{ modul_basligi('nav-yeniden-islem', _('Yeniden İşlem')) }}</span>
+</a>{{ modul_alt('nav-yeniden-islem') }}{% endif %}
 {% if modul_acik('nav-teknik-resim') %}<a href="{{ request.script_root }}/teknik-resim" class="nav-item" id="nav-teknik-resim">
 <span class="nav-icon">📐</span><span>{{ modul_basligi('nav-teknik-resim', _('Teknik Resimler')) }}</span>
 </a>{{ modul_alt('nav-teknik-resim') }}{% endif %}
                 </div>
                 <!-- D03 Bakım -->
+<div class="nav-section" id="nav-ppap-grup">
+<div class="nav-section-title">{{ _('PPAP') }}</div>
+                    {% if modul_acik('nav-ppap') %}<a href="{{ request.script_root }}/ppap" class="nav-item" id="nav-ppap">
+                        <span class="nav-icon">📦</span>
+                        <span>{{ _('PPAP Yönetimi') }}</span>
+                    </a>{{ modul_alt('nav-ppap') }}{% endif %}
+{% if modul_acik('nav-urun-proses') %}<a href="{{ request.script_root }}/urun-proses" class="nav-item" id="nav-urun-proses">
+<span class="nav-icon">📑</span><span>{{ modul_basligi('nav-urun-proses', _('PPAP · Ürün Prosesi')) }}</span>
+</a>{{ modul_alt('nav-urun-proses') }}{% endif %}
+                    {% if modul_acik('nav-apqp') %}<a href="{{ request.script_root }}/iatf/apqp" class="nav-item" id="nav-apqp">
+                        <span class="nav-icon">📐</span><span>{{ _('APQP') }}</span>
+                    </a>{{ modul_alt('nav-apqp') }}{% endif %}
+                    {% if modul_acik('nav-fmea') %}<a href="{{ request.script_root }}/iatf/fmea" class="nav-item" id="nav-fmea">
+                        <span class="nav-icon">🧮</span><span>{{ _('FMEA') }}</span>
+                    </a>{{ modul_alt('nav-fmea') }}{% endif %}
+                    {% if modul_acik('nav-cp') %}<a href="{{ request.script_root }}/iatf/control-plans" class="nav-item" id="nav-cp">
+                        <span class="nav-icon">📋</span><span>{{ _('Kontrol Planı') }}</span>
+                    </a>{{ modul_alt('nav-cp') }}{% endif %}
+                    {% if modul_acik('nav-cal') %}<a href="{{ request.script_root }}/iatf/calibration" class="nav-item" id="nav-cal">
+                        <span class="nav-icon">📏</span><span>{{ _('Kalibrasyon') }}</span>
+                    </a>{{ modul_alt('nav-cal') }}{% endif %}
+{% if modul_acik('nav-dogrulama') %}<a href="{{ request.script_root }}/dogrulama" class="nav-item" id="nav-dogrulama">
+<span class="nav-icon">🔬</span><span>{{ modul_basligi('nav-dogrulama', _('Mastar & Cihaz Doğrulama')) }}</span>
+</a>
+<a href="{{ request.script_root }}/dogrulama?tur=Terazi" class="nav-item nav-alt" id="nav-dogrulama-terazi"><span class="nav-icon">⚖️</span><span>{{ _('Terazi Doğrulama') }}</span></a>
+<a href="{{ request.script_root }}/dogrulama?tur=Termokupl" class="nav-item nav-alt" id="nav-dogrulama-termokupl"><span class="nav-icon">🌡️</span><span>{{ _('Thermocouple Doğrulama') }}</span></a>
+{{ modul_alt('nav-dogrulama') }}{% endif %}
+                    {% if modul_acik('nav-spc') %}<a href="{{ request.script_root }}/iatf/spc" class="nav-item" id="nav-spc">
+                        <span class="nav-icon">📉</span><span>{{ _('SPC') }}</span>
+                    </a>{{ modul_alt('nav-spc') }}{% endif %}
+                    {% if modul_acik('nav-csr') %}<a href="{{ request.script_root }}/iatf/csr" class="nav-item" id="nav-csr">
+                        <span class="nav-icon">📌</span><span>{{ _('CSR') }}</span>
+                    </a>{{ modul_alt('nav-csr') }}{% endif %}
+</div>
 <div class="nav-section">
 <div class="nav-section-title">{{ _('D03 Bakım') }}</div>
 {% if modul_acik('nav-bakim') %}<a href="{{ request.script_root }}/bakim" class="nav-item" id="nav-bakim">
@@ -174,33 +207,15 @@
                 <!-- IATF 16949 Otomotiv -->
                 <div class="nav-section">
                     <div class="nav-section-title">{{ _('IATF 16949 Otomotiv') }}</div>
-                    {% if modul_acik('nav-apqp') %}<a href="{{ request.script_root }}/iatf/apqp" class="nav-item" id="nav-apqp">
-                        <span class="nav-icon">📐</span><span>{{ _('APQP') }}</span>
-                    </a>{{ modul_alt('nav-apqp') }}{% endif %}
-                    {% if modul_acik('nav-fmea') %}<a href="{{ request.script_root }}/iatf/fmea" class="nav-item" id="nav-fmea">
-                        <span class="nav-icon">🧮</span><span>{{ _('FMEA') }}</span>
-                    </a>{{ modul_alt('nav-fmea') }}{% endif %}
-                    {% if modul_acik('nav-cp') %}<a href="{{ request.script_root }}/iatf/control-plans" class="nav-item" id="nav-cp">
-                        <span class="nav-icon">📋</span><span>{{ _('Kontrol Planı') }}</span>
-                    </a>{{ modul_alt('nav-cp') }}{% endif %}
                     {% if modul_acik('nav-enj-param') %}<a href="{{ request.script_root }}/uretim/enjeksiyon-parametreleri" class="nav-item" id="nav-enj-param">
                         <span class="nav-icon">🎛️</span><span>{{ _('Enjeksiyon Parametreleri') }}</span>
                     </a>{{ modul_alt('nav-enj-param') }}{% endif %}
-                    {% if modul_acik('nav-cal') %}<a href="{{ request.script_root }}/iatf/calibration" class="nav-item" id="nav-cal">
-                        <span class="nav-icon">📏</span><span>{{ _('Kalibrasyon') }}</span>
-                    </a>{{ modul_alt('nav-cal') }}{% endif %}
                     {% if modul_acik('nav-uou') %}<a href="{{ request.script_root }}/iatf/nonconforming" class="nav-item" id="nav-uou">
                         <span class="nav-icon">🚧</span><span>{{ _('Uygun Olmayan Ürün') }}</span>
                     </a>{{ modul_alt('nav-uou') }}{% endif %}
                     {% if modul_acik('nav-sup') %}<a href="{{ request.script_root }}/iatf/suppliers" class="nav-item" id="nav-sup">
                         <span class="nav-icon">🚚</span><span>{{ _('Tedarikçiler') }}</span>
                     </a>{{ modul_alt('nav-sup') }}{% endif %}
-                    {% if modul_acik('nav-spc') %}<a href="{{ request.script_root }}/iatf/spc" class="nav-item" id="nav-spc">
-                        <span class="nav-icon">📉</span><span>{{ _('SPC') }}</span>
-                    </a>{{ modul_alt('nav-spc') }}{% endif %}
-                    {% if modul_acik('nav-csr') %}<a href="{{ request.script_root }}/iatf/csr" class="nav-item" id="nav-csr">
-                        <span class="nav-icon">📌</span><span>{{ _('CSR') }}</span>
-                    </a>{{ modul_alt('nav-csr') }}{% endif %}
                 </div>
 
                 <!-- Entegre Yönetim Sistemi (IMS) -->

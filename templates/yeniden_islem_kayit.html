@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Yeniden İşlem #{{ r.id }}{% endblock %}
+{% block breadcrumb %}<span class="separator">›</span><a href="{{ url_for('yeniden_islem_liste') }}">Yeniden İşlem</a><span class="separator">›</span><span>#{{ r.id }}</span>{% endblock %}
+{% block content %}
+{% macro v(x) %}{{ x if x is not none else '' }}{% endmacro %}
+<div class="mb-16 d-flex align-center justify-between" style="flex-wrap:wrap;gap:10px;">
+  <div><div class="text-muted" style="font-size:12px;">{{ r.statu or '' }}{% if r.kaynak %} · {{ r.kaynak }}{% endif %}</div><h2 style="font-size:20px;font-weight:700;">♻️ {{ r.urun or r.stok_adi }} <span style="font-size:13px;font-weight:600;">· {{ durum }}</span></h2></div>
+  <div style="display:flex;gap:8px;"><a href="{{ url_for('yeniden_islem_liste') }}" class="btn btn-outline">⬅️ Liste</a></div>
+</div>
+<form method="POST"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<div class="section-card mb-16"><div class="section-header"><span class="section-title">Ürün ve uygunsuzluk</span></div><div class="section-body" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;">
+  <div class="form-group"><label class="form-label">Karantinaya giriş</label><input type="date" name="giris_tarihi" class="form-control" value="{{ r.giris_tarihi.isoformat() if r.giris_tarihi else '' }}"></div>
+  <div class="form-group"><label class="form-label">Saha</label><input name="saha" class="form-control" value="{{ r.saha or '' }}"></div>
+  <div class="form-group"><label class="form-label">Statü</label><input name="statu" class="form-control" value="{{ r.statu or '' }}"></div>
+  <div class="form-group"><label class="form-label">Ürün</label><input name="urun" class="form-control" value="{{ r.urun or '' }}"></div>
+  <div class="form-group"><label class="form-label">Stok adı</label><input name="stok_adi" class="form-control" value="{{ r.stok_adi or '' }}"></div>
+  <div class="form-group"><label class="form-label">Stok kodu</label><input name="stok_kodu" class="form-control" value="{{ r.stok_kodu or '' }}"></div>
+  <div class="form-group"><label class="form-label">İş emri no</label><input name="is_emri" class="form-control" value="{{ r.is_emri or '' }}"></div>
+  <div class="form-group"><label class="form-label">Lot no</label><input name="lot_no" class="form-control" value="{{ r.lot_no or '' }}"></div>
+  <div class="form-group"><label class="form-label">Miktar</label><input name="miktar" class="form-control" inputmode="decimal" value="{{ v(r.miktar) }}"></div>
+  <div class="form-group" style="grid-column:1/-1;"><label class="form-label">Ürün ile ilgili uygunsuzluk</label><textarea name="uygunsuzluk" class="form-control" rows="2">{{ r.uygunsuzluk or '' }}</textarea></div></div></div>
+<div class="section-card mb-16"><div class="section-header"><span class="section-title">Yapılan işlem ve sonuç</span></div><div class="section-body" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;">
+  <div class="form-group"><label class="form-label">İşlem tarihi</label><input type="date" name="islem_tarihi" class="form-control" value="{{ r.islem_tarihi.isoformat() if r.islem_tarihi else '' }}"></div>
+  <div class="form-group"><label class="form-label">Sorumlu</label><input name="sorumlu" class="form-control" value="{{ r.sorumlu or '' }}"></div>
+  <div class="form-group"><label class="form-label">Termin</label><input type="date" name="termin" class="form-control" value="{{ r.termin.isoformat() if r.termin else '' }}"></div>
+  <div class="form-group"><label class="form-label">Durum</label><select name="durum" class="form-control">{% for d in durumlar %}<option {% if durum == d %}selected{% endif %}>{{ d }}</option>{% endfor %}</select></div>
+  <div class="form-group"><label class="form-label">İşlem sonunda sağlam miktar</label><input name="saglam_miktar" class="form-control" inputmode="decimal" value="{{ v(r.saglam_miktar) }}"></div>
+  <div class="form-group"><label class="form-label">Hatalı miktar</label><input name="hatali_miktar" class="form-control" inputmode="decimal" value="{{ v(r.hatali_miktar) }}"></div>
+  <div class="form-group"><label class="form-label">Süre</label><input name="sure" class="form-control" inputmode="decimal" value="{{ v(r.sure) }}"></div>
+  <div class="form-group"><label class="form-label">Süre birimi</label><select name="sure_birim" class="form-control"><option value="dk" {% if (r.sure_birim or 'dk') == 'dk' %}selected{% endif %}>dk</option><option value="saat" {% if r.sure_birim == 'saat' %}selected{% endif %}>saat</option></select></div>
+  <div class="form-group"><label class="form-label">Operatör sayısı</label><input name="operator_sayisi" class="form-control" inputmode="decimal" value="{{ v(r.operator_sayisi) }}"></div>
+  <div class="form-group" style="grid-column:1/-1;"><label class="form-label">Yapılan işlem</label><textarea name="yapilan_islem" class="form-control" rows="2">{{ r.yapilan_islem or '' }}</textarea></div>
+  <div class="form-group" style="grid-column:1/-1;"><label class="form-label">Aksiyon</label><textarea name="aksiyon" class="form-control" rows="2">{{ r.aksiyon or '' }}</textarea></div></div></div>
+<div class="section-card mb-16"><div class="section-header"><span class="section-title">Maliyet</span><span class="text-muted" style="font-size:12px;">Boş bırakılan alanlar hesaplanır: imha = hatalı × parça maliyeti; işçilik = saat × operatör × {{ saat_ucreti }} /saat; toplam = imha + işçilik</span></div>
+  <div class="section-body" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;">
+  <div class="form-group"><label class="form-label">Birim fiyat</label><input name="birim_fiyat" class="form-control" inputmode="decimal" value="{{ v(r.birim_fiyat) }}"></div>
+  <div class="form-group"><label class="form-label">Döviz</label><input name="doviz" class="form-control" value="{{ r.doviz or '' }}"></div>
+  <div class="form-group"><label class="form-label">Parça birim maliyeti</label><input name="parca_birim_maliyet" class="form-control" inputmode="decimal" value="{{ v(r.parca_birim_maliyet) }}"></div>
+  <div class="form-group"><label class="form-label">İmha maliyeti</label><input name="imha_maliyeti" class="form-control" inputmode="decimal" value="{{ v(r.imha_maliyeti) }}"></div>
+  <div class="form-group"><label class="form-label">Geri kazanım bedeli</label><input name="geri_kazanim" class="form-control" inputmode="decimal" value="{{ v(r.geri_kazanim) }}"></div>
+  <div class="form-group"><label class="form-label">İşçilik maliyeti</label><input name="iscilik_maliyeti" class="form-control" inputmode="decimal" value="{{ v(r.iscilik_maliyeti) }}"></div>
+  <div class="form-group"><label class="form-label">Toplam yeniden işlem maliyeti</label><input name="toplam_maliyet" class="form-control" inputmode="decimal" value="{{ v(r.toplam_maliyet) }}"></div></div></div>
+{% if yazabilir %}<div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="btn btn-primary" type="submit" style="font-weight:700;">💾 Kaydet</button>
+  <button class="btn btn-outline" type="submit" name="tamamla" value="1">✅ Kaydet ve tamamla</button>
+  <label style="font-size:12px;display:flex;align-items:center;gap:5px;"><input type="checkbox" name="maliyet_sifirla" value="1"> Maliyeti yeniden hesapla</label></div>{% endif %}
+</form>
+{% if yonetici %}<form method="POST" style="margin-top:14px;"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="sil"><button class="btn btn-outline" onclick="return confirm('Kayıt silinsin mi?')">🗑 Kaydı sil</button></form>{% endif %}
+{% endblock %}

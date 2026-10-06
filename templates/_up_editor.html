@@ -1,0 +1,64 @@
+<style>
+.up-t{border-collapse:separate;border-spacing:0;width:100%;}
+.up-t th{background:var(--bg-secondary);font-size:10.5px;text-transform:uppercase;letter-spacing:.02em;text-align:left;padding:6px 5px;border-bottom:2px solid var(--border);white-space:nowrap;position:sticky;top:0;}
+.up-t td{padding:3px;border-bottom:1px solid var(--border);vertical-align:top;}
+.up-t textarea,.up-t input[type=text],.up-t input[type=number]{width:100%;font-size:12px;padding:4px;border:1px solid transparent;background:transparent;border-radius:4px;color:inherit;font-family:inherit;}
+.up-t textarea{min-height:46px;resize:vertical;}
+.up-t textarea:hover,.up-t textarea:focus,.up-t input:hover,.up-t input:focus{border-color:var(--border);background:var(--bg-primary);}
+.up-t input.sy{width:70px;text-align:right;}
+.up-t select{font-size:12px;padding:3px;max-width:150px;}
+.up-t tr.ro td{background:rgba(120,120,120,.06);}
+.up-t tr.ro textarea,.up-t tr.ro select{pointer-events:none;}
+.up-badge{display:inline-block;font-size:11px;font-weight:800;padding:2px 8px;border-radius:5px;}
+.up-H{background:#fde2e2;color:#b91c1c;}.up-M{background:#fff1c2;color:#92600a;}.up-L{background:#d9f2e0;color:#166534;}
+.up-nt{font-size:10px;color:#b91c1c;max-width:110px;line-height:1.2;margin-top:3px;}
+.up-sav{font-size:11px;color:var(--text-muted);}
+.up-why{font-size:10px;color:var(--text-muted);max-width:130px;line-height:1.2;margin-top:2px;}
+</style>
+<script>
+const UPK={{ (kriterler or {})|tojson }};
+const UPAD={H:'Yüksek',M:'Orta',L:'Düşük'};
+const upesc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function upWhy(k,v){const L=UPK[k]||[];const a=L.find(x=>String(x[0])===String(v));return a?`<b>${upesc(a[1])}</b> — ${upesc(a[2])}`:'';}
+function upBadge(a){return a?`<span class="up-badge up-${a}">${UPAD[a]}</span>`:'';}
+function upSav(m,h){const e=document.getElementById('up-sav');if(e){e.textContent=m;e.style.color=h?'#b91c1c':'';}}
+async function upPost(url,d){const f=new URLSearchParams(d);f.append('csrf_token',{{ csrf_token()|tojson }});
+  const r=await fetch(url,{method:'POST',body:f,headers:{'X-CSRFToken':{{ csrf_token()|tojson }}}});return r.json().catch(()=>({ok:false,hata:'Sunucu hatası'}));}
+const UPP={{ puanlar|tojson }};
+const UPURL={fmea:{{ url_for('urun_proses_api_fmea')|tojson }},kp:{{ url_for('urun_proses_api_kp')|tojson }}};
+function upSel(r,a,edit){const k=a[0];const kk=k==='S'?'S':k;const o=UPP[k];
+  if(!edit)return `<b>${upesc(r[a])}</b>`;
+  return `<select data-a="${a}"><option value=""></option>${o.map(p=>`<option ${String(r[a])===String(p)?'selected':''}>${p}</option>`).join('')}</select><div class="up-why">${upWhy(kk,r[a])}</div>`;}
+function upTa(r,a,edit){return `<textarea data-a="${a}" ${edit?'':'readonly'}>${upesc(r[a])}</textarea>`;}
+function fmeaRow(r,edit,ro){return `<tr data-id="${r.id}" class="${ro?'ro':''}"><td>${upTa(r,'fn',edit)}</td><td>${upTa(r,'eff',edit)}</td><td>${upSel(r,'S',edit)}</td><td>${upTa(r,'mode',edit)}</td><td>${upTa(r,'cause',edit)}</td><td>${upTa(r,'prev',edit)}</td><td>${upSel(r,'O',edit)}</td><td>${upTa(r,'det',edit)}</td><td>${upSel(r,'D',edit)}</td>
+ <td class="ca">${upBadge(r.ap)}<div class="up-nt">${(r.uyari||[]).filter(u=>u[0]==='uyari').map(u=>upesc(u[1])).join('<br>')}</div></td><td>${upTa(r,'act',edit)}</td><td>${upSel(r,'O2',edit)}</td><td>${upSel(r,'D2',edit)}</td><td class="ca2">${upBadge(r.ap2)}</td><td>${edit?`<button class="btn btn-outline" data-sil style="padding:1px 7px">✕</button>`:''}</td></tr>`;}
+const FMEA_HEAD='<tr><th>Fonksiyon</th><th>Hata etkisi</th><th>S</th><th>Hata modu</th><th>Hata nedeni</th><th>Önleyici aksiyon</th><th>O</th><th>Tespit aksiyonu</th><th>D</th><th>AP</th><th>Optimizasyon aksiyonu</th><th>O′</th><th>D′</th><th>AP′</th><th></th></tr>';
+function kpRow(r,edit,fmeaOpt){const n=(a,w)=>`<input type="text" class="sy" inputmode="decimal" data-a="${a}" value="${upesc(r[a])}" ${edit?'':'readonly'}>`;
+ const fm=edit?`<select data-a="fmea_satir_id"><option value=""></option>${fmeaOpt.map(o=>`<option value="${o[0]}" ${String(r.fmea_satir_id)===String(o[0])?'selected':''}>${upesc(o[1])}</option>`).join('')}</select>`:'';
+ return `<tr data-id="${r.id}"><td><input type="text" data-a="karakteristik" value="${upesc(r.karakteristik)}" ${edit?'':'readonly'} style="min-width:150px"></td>
+ <td>${edit?`<select data-a="tur">${['Ölçü','Görsel'].map(t=>`<option ${r.tur===t?'selected':''}>${t}</option>`).join('')}</select>`:upesc(r.tur)}</td>
+ <td>${edit?`<select data-a="ozel" style="width:54px"><option value=""></option>${['CC','SC'].map(t=>`<option ${r.ozel===t?'selected':''}>${t}</option>`).join('')}</select>`:upesc(r.ozel)}</td>
+ <td><input type="text" data-a="birim" value="${upesc(r.birim)}" style="width:44px" ${edit?'':'readonly'}></td><td>${n('nominal')}</td><td>${n('alt_limit')}</td><td>${n('ust_limit')}</td>
+ <td><input type="text" data-a="olcum_araci" value="${upesc(r.olcum_araci)}" ${edit?'':'readonly'} style="min-width:110px"></td><td><input type="text" class="sy" style="width:44px" data-a="numune" value="${upesc(r.numune)}" ${edit?'':'readonly'}></td>
+ <td><input type="text" data-a="siklik" value="${upesc(r.siklik)}" ${edit?'':'readonly'} style="min-width:100px"></td><td><input type="text" data-a="yontem" value="${upesc(r.yontem)}" ${edit?'':'readonly'} style="min-width:130px"></td>
+ <td><input type="text" data-a="reaksiyon" value="${upesc(r.reaksiyon)}" ${edit?'':'readonly'} style="min-width:140px"></td><td>${fm}</td><td>${edit?`<button class="btn btn-outline" data-sil style="padding:1px 7px">✕</button>`:''}</td></tr>`;}
+const KP_HEAD='<tr><th>Karakteristik</th><th>Tür</th><th>Özel</th><th>Birim</th><th>Nominal</th><th>Alt limit</th><th>Üst limit</th><th>Ölçüm aracı</th><th>Numune</th><th>Sıklık</th><th>Kontrol yöntemi</th><th>Reaksiyon planı</th><th>İlgili FMEA</th><th></th></tr>';
+/* tablo: host, kind('fmea'|'kp'), rows, ctx {tid,up,edit,fmeaOpt()} */
+function upTablo(host,kind,rows,ctx){
+  const rowf=r=>kind==='fmea'?fmeaRow(r,ctx.edit,false):kpRow(r,ctx.edit,ctx.fmeaOpt?ctx.fmeaOpt():[]);
+  const roRows=(ctx.ro||[]).map(r=>fmeaRow(r,false,true)).join('');
+  host.innerHTML=`<div style="overflow:auto"><table class="up-t"><thead>${kind==='fmea'?FMEA_HEAD:KP_HEAD}</thead><tbody>${roRows}${rows.map(rowf).join('')}</tbody></table></div>`
+   +(ctx.edit?`<button class="btn btn-outline" data-ekle style="margin-top:6px;font-size:12px">＋ Satır ekle</button>`:'');
+  host._rows=rows;
+  host.onchange=async e=>{const el=e.target;const tr=el.closest('tr');if(!tr||!el.dataset.a||tr.classList.contains('ro'))return;
+    upSav('Kaydediliyor…');const j=await upPost(UPURL[kind],{action:'guncelle',rid:tr.dataset.id,alan:el.dataset.a,deger:el.value});
+    if(j.ok){const i=rows.findIndex(x=>String(x.id)===tr.dataset.id);if(i>=0)rows[i]=j.satir;
+      if(kind==='fmea'){tr.querySelector('.ca').innerHTML=upBadge(j.satir.ap)+`<div class="up-nt">${(j.satir.uyari||[]).filter(u=>u[0]==='uyari').map(u=>upesc(u[1])).join('<br>')}</div>`;tr.querySelector('.ca2').innerHTML=upBadge(j.satir.ap2);
+        tr.querySelectorAll('select[data-a]').forEach(s=>{const a=s.dataset.a;if(['S','O','D','O2','D2'].includes(a)){const w=s.nextElementSibling;if(w)w.innerHTML=upWhy(a[0],j.satir[a]);}});}
+      upSav('✔ Kaydedildi');if(ctx.after)ctx.after();}else{upSav('⚠ '+(j.hata||'Kaydedilemedi'),true);if(kind==='kp'&&j.satir===undefined){const i=rows.findIndex(x=>String(x.id)===tr.dataset.id);if(i>=0)el.value=rows[i][el.dataset.a]??'';}}};
+  host.onclick=async e=>{const b=e.target.closest('button');if(!b)return;
+    if(b.dataset.ekle!==undefined){const j=await upPost(UPURL[kind],{action:'ekle',adim_tanim_id:ctx.tid,urun_proses_id:ctx.up||'',standart:ctx.std||''});if(j.ok){rows.push(j.satir);upTablo(host,kind,rows,ctx);if(ctx.after)ctx.after();}}
+    else if(b.dataset.sil!==undefined){const tr=b.closest('tr');if(!confirm('Satır silinsin mi?'))return;const j=await upPost(UPURL[kind],{action:'sil',rid:tr.dataset.id});
+      if(j.ok){const i=rows.findIndex(x=>String(x.id)===tr.dataset.id);if(i>=0)rows.splice(i,1);upTablo(host,kind,rows,ctx);if(ctx.after)ctx.after();}else upSav('⚠ '+(j.hata||'Silinemedi'),true);}};
+}
+</script>

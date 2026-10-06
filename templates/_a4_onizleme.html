@@ -1,0 +1,73 @@
+{# A4 sayfa görünümü (210x297 mm): beyaz sayfa, ortalanmış, yakınlaştırılabilir, yazdırmada gerçek A4.
+   Kullanım: <div class="a4-stage"> ... <div class="a4-sheet" data-a4>içerik</div> ... </div> + araç çubuğu <div class="a4-bar" data-a4-bar>.
+   Yatay sayfa: .a4-sheet--land (297x210). Script: window.A4.uygula(stage). #}
+<style>
+.a4-bar{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:8px 12px;border-bottom:1px solid var(--border-color);background:var(--bg-secondary);font-size:12px;color:var(--text-secondary)}
+.a4-bar .sp{flex:1}
+.a4-bar .a4-lbl{min-width:44px;text-align:center}
+.a4-stage{background:#525659;padding:20px 16px;overflow:auto;max-height:82vh;text-align:center}
+.a4-sheet{display:block;position:relative;text-align:left;margin:0 auto 18px;width:210mm;min-height:297mm;box-sizing:border-box;background:#fff;color:#111;
+  box-shadow:0 2px 6px rgba(0,0,0,.35),0 8px 28px rgba(0,0,0,.35);padding:16mm 16mm 18mm}
+.a4-sheet--land{width:297mm;min-height:210mm;padding:12mm}
+.a4-sheet--bare{padding:0}
+.a4-sheet--center{display:flex;align-items:center;justify-content:center}
+.a4-sheet table{max-width:100%}
+.a4-sheet img{max-width:100%;height:auto}
+.a4-sheet pre{white-space:pre-wrap;word-break:break-word;font-size:12px;color:#111;margin:0}
+.preview-container.a4-wrap{min-height:0;background:transparent;border-radius:0 0 var(--radius-lg) var(--radius-lg)}
+.a4-note{font-size:11px;color:var(--text-muted);padding:6px 12px;border-top:1px solid var(--border-color)}
+@media (max-width:640px){.a4-stage{padding:10px 6px}.a4-bar .btn{padding:4px 8px}}
+@page{size:A4;margin:0}
+.doc-detail-info{flex:1 1 320px;min-width:0}
+.doc-detail-header{flex-wrap:wrap}
+@media print{
+  body.a4-yazdir .sidebar, body.a4-yazdir .header, body.a4-yazdir .sidebar-backdrop, body.a4-yazdir .doc-detail-header,
+  body.a4-yazdir .tabs, body.a4-yazdir .a4-bar, body.a4-yazdir .a4-note, body.a4-yazdir .section-header,
+  body.a4-yazdir .breadcrumb, body.a4-yazdir .tab-content:not(.active), body.a4-yazdir .modal-overlay, body.a4-yazdir .preview-toolbar{display:none !important}
+  body.a4-yazdir .main-content{margin:0 !important;padding:0 !important}
+  body.a4-yazdir .section-card{border:0 !important;box-shadow:none !important;background:none !important}
+  body.a4-yazdir .a4-stage{background:none;padding:0;max-height:none;overflow:visible}
+  .a4-sheet{zoom:1 !important;margin:0 !important;box-shadow:none !important;width:210mm;min-height:297mm;break-after:page;page-break-after:always}
+  .a4-sheet--land{width:297mm;min-height:210mm}
+}
+</style>
+<script>
+(function(){
+  var MM = 96/25.4;
+  function taban(stage){
+    var s = stage.querySelector('.a4-sheet');
+    return s ? (s.classList.contains('a4-sheet--land') ? 297 : 210) * MM : 794;
+  }
+  function uygula(stage){
+    if(!stage) return;
+    var w = stage.clientWidth - (parseFloat(getComputedStyle(stage).paddingLeft)||0)*2;
+    if(w <= 0) return;                       // sekme gizli: görününce ResizeObserver tekrar çağırır
+    var z = stage._fit !== false ? Math.min(1, w / taban(stage)) : stage._z || 1;
+    stage._cur = z;
+    stage.querySelectorAll('.a4-sheet').forEach(function(sh){ sh.style.zoom = z; });
+    var bar = stage.parentNode.querySelector('[data-a4-bar]');
+    if(bar){ var l = bar.querySelector('.a4-lbl'); if(l) l.textContent = Math.round(z*100) + '%'; }
+  }
+  function kur(stage){
+    if(stage._a4) return; stage._a4 = 1; stage._fit = true;
+    if(window.ResizeObserver) new ResizeObserver(function(){ uygula(stage); }).observe(stage);
+    uygula(stage);
+  }
+  document.addEventListener('click', function(e){
+    var b = e.target.closest('[data-a4-act]'); if(!b) return;
+    var kap = b.closest('.section-card, .tab-content') || document;
+    var stage = kap.querySelector('.a4-stage'); if(!stage) return;
+    var a = b.getAttribute('data-a4-act'), z = stage._cur || 1;
+    if(a === 'in'){ stage._fit = false; stage._z = Math.min(2.5, z + .15); }
+    else if(a === 'out'){ stage._fit = false; stage._z = Math.max(.3, z - .15); }
+    else if(a === 'fit'){ stage._fit = true; }
+    else if(a === 'print'){ document.body.classList.add('a4-yazdir'); window.print(); return; }
+    uygula(stage);
+  });
+  window.addEventListener('afterprint', function(){ document.body.classList.remove('a4-yazdir'); });
+  window.A4 = {uygula: uygula, kur: kur};
+  function hepsi(){ document.querySelectorAll('.a4-stage:not(.a4-pdf)').forEach(kur); }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', hepsi); else hepsi();
+  document.addEventListener('click', function(e){ if(e.target.closest('.tab-item')) setTimeout(function(){ document.querySelectorAll('.a4-stage:not(.a4-pdf)').forEach(uygula); }, 30); });
+})();
+</script>

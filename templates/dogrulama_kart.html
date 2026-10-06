@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}Doğrulama — {{ k.no }}{% endblock %}
+{% block breadcrumb %}<span class="separator">›</span><a href="{{ url_for('dogrulama_liste') }}">Doğrulama</a><span class="separator">›</span><span>{{ k.no }}</span>{% endblock %}
+{% block content %}
+<style>.dg-b{display:inline-block;font-size:11px;font-weight:800;padding:2px 8px;border-radius:5px;}.dg-OK{background:#d9f2e0;color:#166534;}.dg-NOK{background:#fde2e2;color:#b91c1c;}
+.dg-t{width:100%;border-collapse:collapse;font-size:13px;}.dg-t th,.dg-t td{border-bottom:1px solid var(--border);padding:5px 7px;text-align:left;vertical-align:middle;}.dg-t th{background:var(--bg-secondary);font-size:11px;text-transform:uppercase;}
+.dg-kv{display:grid;grid-template-columns:200px 1fr;gap:3px 12px;font-size:13px;}.dg-kv b{color:var(--text-muted);font-weight:600;}
+.dg-g{display:flex;gap:10px;flex-wrap:wrap;}.dg-g figure{margin:0;border:1px solid var(--border);border-radius:8px;padding:6px;max-width:260px;}.dg-g img{max-width:100%;max-height:200px;display:block;}.dg-g figcaption{font-size:11px;color:var(--text-muted);display:flex;justify-content:space-between;}
+input.dgs{width:130px;text-align:right;font-size:18px;font-weight:700;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-primary);color:inherit;}input.dgs.ok{border-color:#16a34a;background:#e7f6ec;}input.dgs.nok{border-color:#b91c1c;background:#fde2e2;color:#7f1d1d;}</style>
+<div class="mb-16 d-flex align-center justify-between" style="flex-wrap:wrap;gap:10px;">
+  <div><div class="text-muted" style="font-size:12px;">{{ k.tur }}{% if k.grup %} · {{ k.grup }}{% endif %}{% if k.urun %} · {{ k.urun }}{% endif %}{% if k.aktif is false %} · <b style="color:#92600a;">PASİF</b>{% endif %}</div>
+    <h2 style="font-size:20px;font-weight:700;">🔬 {{ k.no }} — {{ k.ad }}</h2></div>
+  <div style="display:flex;gap:8px;"><a href="{{ url_for('dogrulama_yazdir', kid=k.id) }}" target="_blank" class="btn btn-outline">🖨️ D04 F03 çıktısı</a><a href="{{ url_for('dogrulama_liste') }}" class="btn btn-outline">⬅️ Liste</a></div>
+</div>
+<div class="section-card mb-16"><div class="section-body" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;">
+  <div><div class="text-muted" style="font-size:11px;">SON DOĞRULAMA</div><b>{{ oz.son.strftime('%d.%m.%Y') if oz.son else '—' }}</b> {% if oz.karar %}<span class="dg-b dg-{{ oz.karar }}">{{ oz.karar }}</span>{% endif %}</div>
+  <div><div class="text-muted" style="font-size:11px;">GELECEK DOĞRULAMA</div><b>{{ oz.gelecek.strftime('%d.%m.%Y') if oz.gelecek else '—' }}</b></div>
+  <div><div class="text-muted" style="font-size:11px;">KALAN GÜN</div><b style="color:{{ '#b91c1c' if oz.kalan is not none and oz.kalan < 0 else 'inherit' }};">{{ oz.kalan if oz.kalan is not none else '—' }}</b></div>
+  <div><div class="text-muted" style="font-size:11px;">SIKLIK / İZİN VERİLEN SAPMA</div><b>{{ (k.dogrulama_ay ~ ' ay') if k.dogrulama_ay else '—' }} · ±{{ k.max_sapma if k.max_sapma is not none else '—' }}</b></div>
+  <div><div class="text-muted" style="font-size:11px;">KAYIT</div><b>{{ oz.adet }} doğrulama</b>{% if oz.ileri %} <span style="color:#92600a;font-size:11px;">({{ oz.ileri }} ileri tarihli)</span>{% endif %}</div></div></div>
+
+{% if k.aktif is not false and oz.kalan is not none %}<div class="section-card mb-16" style="border-left:6px solid {{ '#b91c1c' if oz.kalan < 0 else ('#ea580c' if oz.kalan <= 7 else '#16a34a') }};"><div class="section-body" style="font-size:15px;font-weight:800;color:{{ '#b91c1c' if oz.kalan < 0 else ('#ea580c' if oz.kalan <= 7 else '#166534') }};">
+  {% if oz.kalan < 0 %}⛔ Doğrulama {{ -oz.kalan }} gün gecikti (planlanan {{ oz.gelecek.strftime('%d.%m.%Y') }}){% elif oz.kalan == 0 %}⏳ Doğrulama bugün yapılmalı{% elif oz.kalan <= 7 %}⏳ Doğrulamaya {{ oz.kalan }} gün kaldı ({{ oz.gelecek.strftime('%d.%m.%Y') }}){% else %}✅ Doğrulama güncel — sonraki {{ oz.gelecek.strftime('%d.%m.%Y') }} ({{ oz.kalan }} gün){% endif %}</div></div>
+{% elif k.aktif is not false and not oz.son %}<div class="section-card mb-16" style="border-left:6px solid #6b7280;"><div class="section-body" style="font-weight:800;">❔ Henüz doğrulama kaydı yok</div></div>{% endif %}
+{% if yazabilir %}
+<div class="section-card mb-16" id="dogrula" style="border-left:4px solid var(--color-primary);"><div class="section-header"><span class="section-title">🔬 Yeni doğrulama</span><span class="text-muted" style="font-size:12px;">Yalnız ölçülen değeri girin; sapma ve OK / NOK otomatik</span></div><div class="section-body">
+<form method="POST" id="dg-form"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="oturum">
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:10px;">
+   <div class="form-group" style="margin:0;"><label class="form-label">Tarih / saat</label><input type="datetime-local" name="tarih" value="{{ simdi }}" class="form-control" required></div>
+   <div class="form-group" style="margin:0;"><label class="form-label">Doğrulamayı yapan</label><input name="yapan" value="{{ kullanici_adi }}" class="form-control" maxlength="100"></div>
+   <div class="form-group" style="margin:0;"><label class="form-label">Ortam</label><input name="ortam" value="{{ k.ortam or '' }}" class="form-control" maxlength="100" placeholder="22 °C NEM %31"></div>
+   <div class="form-group" style="margin:0;"><label class="form-label">Doğrulamada kullanılan cihaz</label><input name="cihaz" class="form-control" maxlength="150"></div></div>
+  <table class="dg-t" id="dg-t"><thead><tr><th>Referans / ölçü adı</th><th>Referans</th><th>Tolerans</th><th>Ölçülen</th><th>Sapma</th><th>Karar</th><th></th></tr></thead><tbody>
+  {% for e, r, t in (hazir or [(None, None, None)]) %}<tr><td><input name="etiket" class="form-control" value="{{ e or '' }}" maxlength="150"></td><td><input name="referans" class="form-control" style="width:100px;" inputmode="decimal" value="{{ r if r is not none else '' }}"></td><td><input name="tolerans" class="form-control" style="width:90px;" inputmode="decimal" value="{{ t if t is not none else '' }}"></td><td><input name="sonuc" class="dgs" inputmode="decimal" autocomplete="off"></td><td class="sp">—</td><td class="kr"></td><td><button type="button" class="btn btn-outline" style="padding:0 6px;" onclick="this.closest('tr').remove()">✕</button></td></tr>{% endfor %}</tbody></table>
+  <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;"><button type="button" class="btn btn-outline" id="dg-ekle">＋ Satır</button><input name="notu" class="form-control" style="max-width:340px;" maxlength="500" placeholder="Not (isteğe bağlı)"><button class="btn btn-primary" type="submit" style="font-weight:700;">💾 Doğrulamayı kaydet</button></div>
+  <p class="text-muted" style="font-size:12px;margin-top:6px;">Karar: |ölçülen − referans| ≤ |tolerans| (satırda tolerans yoksa kartın izin verilen sapması: {{ k.max_sapma if k.max_sapma is not none else 'tanımsız' }}). Satır sayısı ve referanslar son doğrulamadan gelir.</p>
+</form></div></div>
+<script>
+(function(){if(location.hash==='#dogrula'){const i=document.querySelector('#dg-t [name=sonuc]');if(i)setTimeout(()=>i.focus(),150);}const f=document.getElementById('dg-form'),T=document.getElementById('dg-t'),KT={{ (k.max_sapma if k.max_sapma is not none else 'null')|tojson }};
+ const n=v=>{v=(v||'').trim().replace(',','.');if(!v)return null;const x=Number(v);return isNaN(x)?NaN:x;};
+ function h(tr){const q=s=>tr.querySelector(s),r=n(q('[name=referans]').value),t=n(q('[name=tolerans]').value),s=n(q('[name=sonuc]').value),i=q('[name=sonuc]');i.classList.remove('ok','nok');
+  if(s===null||isNaN(s)||r===null||isNaN(r)){q('.sp').textContent='—';q('.kr').textContent='';return;}
+  const sp=Math.round((s-r)*1e6)/1e6;q('.sp').textContent=sp;const tol=(t!==null&&!isNaN(t))?t:KT;if(tol===null){q('.kr').textContent='';return;}
+  const ok=Math.abs(sp)<=Math.abs(tol)+1e-9;i.classList.add(ok?'ok':'nok');q('.kr').innerHTML='<span class="dg-b dg-'+(ok?'OK':'NOK')+'">'+(ok?'OK':'NOK')+'</span>';}
+ T.addEventListener('input',e=>{const tr=e.target.closest('tr');if(tr)h(tr);});
+ document.getElementById('dg-ekle').onclick=()=>{const r=T.tBodies[0].rows[0].cloneNode(true);r.querySelectorAll('input').forEach(i=>i.value='');r.querySelector('.sp').textContent='—';r.querySelector('.kr').innerHTML='';T.tBodies[0].appendChild(r);};})();
+</script>{% endif %}
+<div class="section-card mb-16"><div class="section-header"><span class="section-title">Kart bilgileri</span></div><div class="section-body">
+  <div class="dg-kv">
+    <b>Devreye alma tarihi</b><span>{{ k.devreye_alma_tarihi.strftime('%d.%m.%Y') if k.devreye_alma_tarihi else '—' }}</span><b>Devreye alma ölçüsü</b><span>{{ k.devreye_alma_olcusu or '—' }}</span>
+    <b>Kalibrasyon sıklığı</b><span>{{ k.kalibrasyon_siklik or '—' }}</span><b>Ölçüm aralığı</b><span>{{ k.olcum_araligi or '—' }}</span>
+    <b>Marka / model / tip</b><span>{{ k.marka_model or '—' }}</span><b>Ortam</b><span>{{ k.ortam or '—' }}</span>
+    <b>Doğrulama yapılan mastar takımı</b><span>{{ k.mastar_takimi or '—' }}</span><b>Durum</b><span>{{ k.durum or '—' }}</span>
+    <b>Kullanım yeri</b><span>{{ k.kullanim_yeri or '—' }}</span><b>Doğrulama yöntemi</b><span>{{ k.yontem or '—' }}</span>
+    {% if k.kaynak %}<b>Kaynak</b><span class="text-muted" style="font-size:11px;">{{ k.kaynak }}</span>{% endif %}</div></div></div>
+
+<div class="section-card mb-16"><div class="section-header"><span class="section-title">Görseller</span></div><div class="section-body">
+  {% if gorseller %}<div class="dg-g">{% for g in gorseller %}<figure><a href="{{ url_for('dogrulama_gorsel', gid=g.id) }}" target="_blank"><img src="{{ url_for('dogrulama_gorsel', gid=g.id) }}" alt=""></a>
+    <figcaption><span>{{ 'Cihaz / mastar' if g.tur == 'cihaz' else 'Doğrulama yöntemi' }}</span>{% if yonetici %}<form method="POST" style="display:inline;"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="gorsel_sil"><input type="hidden" name="gid" value="{{ g.id }}"><button class="btn btn-outline" style="padding:0 6px;" onclick="return confirm('Görsel silinsin mi?')">✕</button></form>{% endif %}</figcaption></figure>{% endfor %}</div>
+  {% else %}<p class="text-muted">Görsel yok.</p>{% endif %}
+  {% if yonetici %}<form method="POST" enctype="multipart/form-data" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center;"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="gorsel">
+    <select name="tur" class="form-control" style="max-width:190px;"><option value="cihaz">Cihaz / mastar görseli</option><option value="yontem">Doğrulama yöntemi görseli</option></select><input type="file" name="dosya" accept="image/*" class="form-control" style="max-width:280px;"><button class="btn btn-outline" type="submit">＋ Görsel ekle</button></form>{% endif %}</div></div>
+
+
+
+<div class="section-card mb-16"><div class="section-header"><span class="section-title">Doğrulama geçmişi</span><span class="text-muted" style="font-size:12px;">{{ oturumlar|length }} kayıt (yeniden eskiye)</span></div><div class="section-body" style="padding:0;overflow-x:auto;">
+{% for o in oturumlar %}<div style="padding:10px 14px;border-bottom:1px solid var(--border);"><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:4px;"><b>#{{ o.sira }} · {{ o.tarih.strftime('%d.%m.%Y %H:%M') if o.tarih else '—' }}</b><span class="text-muted" style="font-size:12px;">{{ o.yapan or '' }}{% if o.cihaz %} · {{ o.cihaz }}{% endif %}{% if o.ortam %} · {{ o.ortam }}{% endif %}</span>{% if o.karar %}<span class="dg-b dg-{{ o.karar }}">{{ o.karar }}</span>{% endif %}
+  {% if o.tarih and o.tarih > simdi_dt|default(o.tarih) %}{% endif %}
+  {% if yonetici %}<form method="POST" style="display:inline;margin-left:auto;"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="oturum_sil"><input type="hidden" name="oid" value="{{ o.id }}"><button class="btn btn-outline" style="padding:0 6px;" onclick="return confirm('Doğrulama kaydı silinsin mi?')">🗑</button></form>{% endif %}</div>
+  <table class="dg-t"><thead><tr><th>Ölçü</th><th>Referans</th><th>Tolerans</th><th>Ölçülen</th><th>Sapma</th><th>Karar</th></tr></thead><tbody>{% for m in olc.get(o.id, []) %}<tr><td>{{ m.etiket or '' }}</td><td>{{ m.referans if m.referans is not none else '' }}</td><td>{{ m.tolerans if m.tolerans is not none else '' }}</td><td>{{ m.sonuc if m.sonuc is not none else '' }}</td><td>{{ m.sapma if m.sapma is not none else '' }}</td><td>{% if m.karar %}<span class="dg-b dg-{{ m.karar }}">{{ m.karar }}</span>{% endif %}</td></tr>{% endfor %}</tbody></table>{% if o.notu %}<div class="text-muted" style="font-size:12px;">Not: {{ o.notu }}</div>{% endif %}</div>
+{% else %}<p class="text-muted" style="padding:16px;">Henüz doğrulama kaydı yok.</p>{% endfor %}</div></div>
+
+{% if yonetici %}
+<div class="section-card"><div class="section-header"><span class="section-title">✏️ Kartı düzenle</span></div><div class="section-body">
+<form method="POST"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="bilgi">
+ <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;">
+  <div class="form-group"><label class="form-label">No</label><input name="no" class="form-control" value="{{ k.no }}"></div>
+  <div class="form-group"><label class="form-label">Ad</label><input name="ad" class="form-control" value="{{ k.ad }}"></div>
+  <div class="form-group"><label class="form-label">Tür</label><select name="tur" class="form-control">{% for t in turler %}<option {% if k.tur == t %}selected{% endif %}>{{ t }}</option>{% endfor %}</select></div>
+  <div class="form-group"><label class="form-label">Grup</label><input name="grup" class="form-control" value="{{ k.grup or '' }}"></div>
+  <div class="form-group"><label class="form-label">Ürün / takım</label><input name="urun" class="form-control" value="{{ k.urun or '' }}"></div>
+  <div class="form-group"><label class="form-label">Devreye alma tarihi</label><input type="date" name="devreye_alma_tarihi" class="form-control" value="{{ k.devreye_alma_tarihi.isoformat() if k.devreye_alma_tarihi else '' }}"></div>
+  <div class="form-group"><label class="form-label">Devreye alma ölçüsü</label><input name="devreye_alma_olcusu" class="form-control" value="{{ k.devreye_alma_olcusu or '' }}"></div>
+  <div class="form-group"><label class="form-label">Doğrulama sıklığı (ay)</label><input type="number" min="1" name="dogrulama_ay" class="form-control" value="{{ k.dogrulama_ay or '' }}"></div>
+  <div class="form-group"><label class="form-label">Kalibrasyon sıklığı</label><input name="kalibrasyon_siklik" class="form-control" value="{{ k.kalibrasyon_siklik or '' }}"></div>
+  <div class="form-group"><label class="form-label">Ölçüm aralığı</label><input name="olcum_araligi" class="form-control" value="{{ k.olcum_araligi or '' }}"></div>
+  <div class="form-group"><label class="form-label">İzin verilen sapma</label><input name="max_sapma" class="form-control" value="{{ k.max_sapma if k.max_sapma is not none else '' }}"></div>
+  <div class="form-group"><label class="form-label">Marka / model / tip</label><input name="marka_model" class="form-control" value="{{ k.marka_model or '' }}"></div>
+  <div class="form-group"><label class="form-label">Ortam</label><input name="ortam" class="form-control" value="{{ k.ortam or '' }}"></div>
+  <div class="form-group"><label class="form-label">Doğrulama yapılan mastar takımı</label><input name="mastar_takimi" class="form-control" value="{{ k.mastar_takimi or '' }}"></div>
+  <div class="form-group"><label class="form-label">Durum</label><input name="durum" class="form-control" value="{{ k.durum or '' }}"></div>
+  <div class="form-group"><label class="form-label">Kullanım yeri</label><input name="kullanim_yeri" class="form-control" value="{{ k.kullanim_yeri or '' }}"></div>
+  <div class="form-group" style="grid-column:1/-1;"><label class="form-label">Doğrulama yöntemi</label><textarea name="yontem" class="form-control" rows="2">{{ k.yontem or '' }}</textarea></div></div>
+ <label style="font-size:13px;display:flex;align-items:center;gap:6px;margin-bottom:8px;"><input type="checkbox" name="aktif" value="1" {% if k.aktif is not false %}checked{% endif %}> Aktif (kapalıysa pasif mastar)</label>
+ <button class="btn btn-outline" type="submit">Kaydet</button></form></div></div>{% endif %}
+{% endblock %}

@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Ölçü girişi — {{ u.urun_adi }}{% endblock %}
+{% block breadcrumb %}<span class="separator">›</span><a href="{{ url_for('urun_proses_liste') }}">Ürün Prosesi</a><span class="separator">›</span><a href="{{ url_for('urun_proses_detay', uid=u.id) }}">{{ u.urun_adi }}</a><span class="separator">›</span><span>Ölçü girişi</span>{% endblock %}
+{% block content %}
+<style>.ol-t{width:100%;border-collapse:collapse;}.ol-t th,.ol-t td{border-bottom:1px solid var(--border);padding:8px 6px;text-align:left;font-size:14px;vertical-align:middle;}.ol-t th{background:var(--bg-secondary);font-size:11px;text-transform:uppercase;}
+.ol-t input.v{width:90px;font-size:16px;padding:7px;text-align:right;border:1px solid var(--border);border-radius:6px;background:var(--bg-primary);color:inherit;}
+.ol-t input.v.nok{border-color:#b91c1c;background:#fde2e2;color:#7f1d1d;}.ol-t input.v.ok{border-color:#16a34a;background:#e7f6ec;}
+.ol-lim{font-family:monospace;font-size:13px;}.ol-b{display:inline-block;font-size:11px;font-weight:800;padding:2px 8px;border-radius:5px;}.ol-OK{background:#d9f2e0;color:#166534;}.ol-NOK{background:#fde2e2;color:#b91c1c;}
+.ol-ust{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;}</style>
+<div class="mb-16 d-flex align-center justify-between" style="flex-wrap:wrap;gap:10px;">
+  <div><div class="text-muted" style="font-size:12px;">{{ u.musteri }}{% if u.urun_kodu %} · {{ u.urun_kodu }}{% endif %}</div><h2 style="font-size:20px;font-weight:700;">📏 Ölçü girişi — {{ u.urun_adi }}</h2>
+    <p class="text-muted" style="font-size:13px;">Yalnız ölçülen değeri girin; uygunluk (OK / NOK) kontrol planındaki limitlerden otomatik belirlenir.</p></div>
+  <div style="display:flex;gap:8px;"><a href="{{ url_for('urun_proses_olcumler', uid=u.id, adim=ua.id if ua else '') }}" class="btn btn-outline">📈 Geçmiş</a><a href="{{ url_for('urun_proses_detay', uid=u.id) }}" class="btn btn-outline">⬅️ Proses akışı</a></div>
+</div>
+<form method="GET" class="section-card mb-16" style="padding:12px 16px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+  <b style="font-size:13px;">Proses adımı:</b>
+  {% for a in adimlar %}<a href="{{ url_for('urun_proses_olcum', uid=u.id, adim=a.id) }}" class="btn {{ 'btn-primary' if ua and ua.id == a.id else 'btn-outline' }}">{{ loop.index }}. {{ a.ad }}</a>{% else %}<span class="text-muted">Bu ürünün proses akışı boş.</span>{% endfor %}
+</form>
+{% if sonlar %}
+<div class="section-card mb-16" style="border-left:4px solid var(--color-primary);"><div class="section-body"><b>Son kaydedilen kontrol</b>
+  <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;">{% for s in sonlar %}<span class="ol-b ol-{{ s.sonuc }}">{{ s.kar }} #{{ s.no }}: {{ s.deger }} {{ s.sonuc }}</span>{% endfor %}</div>
+  {% if sonlar|selectattr('sonuc', 'equalto', 'NOK')|list %}<p style="color:#b91c1c;font-size:13px;margin-top:8px;">Tolerans dışı değer var: ürünü ayırın, <a href="/iatf/nonconforming">Uygun Olmayan Ürün</a> kaydı ve gerekirse DÖF açın (kontrol planı reaksiyon planı).</p>{% endif %}</div></div>
+{% endif %}
+{% if ua %}
+<form method="POST" id="olcum-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="adim" value="{{ ua.id }}">
+  <div class="section-card mb-16"><div class="section-body ol-ust">
+    <div class="form-group" style="margin:0;"><label class="form-label">Vardiya</label><select name="vardiya" class="form-control"><option value=""></option>{% for v in vardiyalar %}<option {% if form.get('vardiya') == v %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></div>
+    <div class="form-group" style="margin:0;"><label class="form-label">İş emri no</label><input name="is_emri" class="form-control" value="{{ form.get('is_emri', '') }}"></div>
+    <div class="form-group" style="margin:0;"><label class="form-label">Lot / parti no</label><input name="lot_no" class="form-control" value="{{ form.get('lot_no', '') }}"></div></div></div>
+  <div class="section-card mb-16"><div class="section-body" style="padding:0;overflow-x:auto;">
+    {% if satirlar %}
+    <table class="ol-t"><thead><tr><th>Karakteristik</th><th>Nominal</th><th>Limitler</th><th>Ölçüm aracı</th><th>Ölçülen değer{{ ' (numune)' }}</th></tr></thead><tbody>
+    {% for r in satirlar %}<tr><td><b>{{ r.karakteristik }}</b>{% if r.ozel %} <span class="ol-b" style="background:#fff1c2;color:#92600a;">{{ r.ozel }}</span>{% endif %}<div class="text-muted" style="font-size:11px;">{{ r.siklik or '' }}</div></td>
+      <td class="ol-lim">{{ r.nominal if r.nominal is not none else '—' }} {{ r.birim or '' }}</td>
+      <td class="ol-lim">{{ r.alt_limit if r.alt_limit is not none else '—' }} … {{ r.ust_limit if r.ust_limit is not none else '—' }}</td><td>{{ r.olcum_araci or '—' }}</td>
+      <td style="white-space:nowrap;">{% for n in range(1, (r.numune or 1) + 1) %}<input class="v" type="text" inputmode="decimal" autocomplete="off" name="v_{{ r.id }}_{{ n }}" value="{{ form.get('v_' ~ r.id ~ '_' ~ n, '') }}" data-alt="{{ r.alt_limit if r.alt_limit is not none else '' }}" data-ust="{{ r.ust_limit if r.ust_limit is not none else '' }}" placeholder="{{ n if (r.numune or 1) > 1 else '' }}">{% endfor %}</td></tr>{% endfor %}
+    </tbody></table>
+    {% else %}<p class="text-muted" style="padding:16px;">Bu adımda ölçüme hazır (limiti tanımlı) karakteristik yok. {% if tanimsiz %}Tanımsız: {{ tanimsiz|map(attribute='karakteristik')|join(', ') }}.{% endif %} Kontrol planında nominal ve alt / üst limit girilmelidir.</p>{% endif %}
+  </div></div>
+  {% if tanimsiz and satirlar %}<p class="text-muted" style="font-size:12px;">Limiti tanımsız (ölçüm dışı): {{ tanimsiz|map(attribute='karakteristik')|join(', ') }}.</p>{% endif %}
+  {% if yazabilir and satirlar %}<div style="position:sticky;bottom:16px;z-index:50;background:var(--bg-primary);padding:12px 16px;border-radius:8px;border:1px solid var(--border);box-shadow:0 4px 12px rgba(0,0,0,.1);display:flex;justify-content:space-between;align-items:center;gap:10px;">
+    <span class="text-muted" style="font-size:12px;" id="ozet">Değer girin.</span><button class="btn btn-primary" type="submit" style="padding:10px 28px;font-weight:700;">💾 Kaydet</button></div>{% endif %}
+</form>
+<script>
+(function(){const f=document.getElementById('olcum-form');if(!f)return;
+ const num=v=>{v=(v||'').trim().replace(',','.');if(!v)return null;const x=Number(v);return isNaN(x)?NaN:x;};
+ function kontrol(i){const v=num(i.value);i.classList.remove('ok','nok');if(v===null)return;if(isNaN(v)){i.classList.add('nok');return;}
+   const a=i.dataset.alt===''?null:Number(i.dataset.alt),u=i.dataset.ust===''?null:Number(i.dataset.ust);i.classList.add((a!==null&&v<a)||(u!==null&&v>u)?'nok':'ok');}
+ function ozet(){const v=[].slice.call(f.querySelectorAll('input.v'));const d=v.filter(x=>x.value.trim());const n=f.querySelectorAll('input.v.nok').length;
+   const e=document.getElementById('ozet');if(e)e.textContent=d.length?`${d.length} değer girildi · ${n} tolerans dışı`:'Değer girin.';}
+ f.addEventListener('input',e=>{if(e.target.classList.contains('v')){kontrol(e.target);ozet();}});[].forEach.call(f.querySelectorAll('input.v'),kontrol);ozet();})();
+</script>
+{% endif %}
+{% endblock %}

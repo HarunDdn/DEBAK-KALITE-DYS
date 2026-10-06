@@ -1,0 +1,16 @@
+{% macro akis(n) %}
+<div class="ak-n">
+  {% if n.cocuklar %}<div class="ak-ch">{% for c in n.cocuklar %}{{ akis(c) }}{% endfor %}</div><div class="ak-ok">▶</div>{% endif %}
+  <div class="ak-z">
+    <div class="ak-b ak-{{ 'u' if n.tur == 'Ürün' else ('h' if n.tur == 'Hammadde' else 'y') }}"><small>{{ n.tur }}{% if n.miktar %} · {{ n.miktar }}{% endif %}</small><b>{{ n.ad }}</b>{% if n.kod %}<small>{{ n.kod }}</small>{% endif %}</div>
+    {% for a in n.adimlar %}<span class="ak-o">→</span><div class="ak-b ak-op"><small>{{ loop.index }}. operasyon</small><b>{{ a.ad }}</b></div>{% endfor %}
+  </div>
+</div>
+{% endmacro %}
+{% macro stil() %}
+<style>.ak-n{display:flex;align-items:center;gap:8px;}.ak-ch{display:flex;flex-direction:column;gap:10px;padding:6px 8px 6px 0;border-right:2px solid var(--border);}
+.ak-z{display:flex;align-items:center;gap:6px;}.ak-ok,.ak-o{color:var(--text-muted);}
+.ak-b{border:2px solid var(--border);border-radius:8px;padding:6px 10px;min-width:110px;background:var(--bg-secondary);display:flex;flex-direction:column;font-size:13px;}
+.ak-b small{font-size:10px;text-transform:uppercase;opacity:.7;}.ak-u{border-color:#1d4ed8;background:#dbeafe;color:#0b1f4d;}.ak-y{border-color:#7c3aed;background:#ede9fe;color:#2e1065;}.ak-h{border-color:#92600a;background:#fff1c2;color:#3d2a05;}
+.ak-op{border-color:#16a34a;background:#e7f6ec;color:#0b2e17;border-radius:20px;}.ak-w{overflow-x:auto;padding:8px 2px;}</style>
+{% endmacro %}

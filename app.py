@@ -1063,17 +1063,45 @@ def dashboard():
 # ═══════════════════════════════════════════════════════════════════
 #  PROCESSES
 # ═══════════════════════════════════════════════════════════════════
+_SUREC_TIPLERI = ("Prosedür", "İş Akışı", "Talimat", "Form")  # süreç haritasında ayrı sayılan doküman tipleri
+_SUREC_YASAM_DISI = ("Eskimiş", "İptal")
+
+
+def _surec_sayilari(db, surec_idleri):
+    """{surec_id: {tip: n, 'Diğer': n, 'toplam': n}} — yürürlükteki (eskimiş/iptal dışı) dokümanlar."""
+    from sqlalchemy import func
+    sonuc = {i: {**{t: 0 for t in _SUREC_TIPLERI}, "Diğer": 0, "toplam": 0} for i in surec_idleri}
+    if not surec_idleri:
+        return sonuc
+    q = (db.query(Document.surec_id, Document.dokuman_tipi, func.count(Document.id))
+         .filter(Document.surec_id.in_(list(surec_idleri)), ~Document.durum.in_(_SUREC_YASAM_DISI))
+         .group_by(Document.surec_id, Document.dokuman_tipi))
+    for sid, tip, n in q.all():
+        d = sonuc[sid]
+        d[tip if tip in _SUREC_TIPLERI else "Diğer"] += n
+        d["toplam"] += n
+    return sonuc
+
+
 @app.route("/processes")
 @login_required
 def processes():
+    """Süreç haritası: yalnız aktif ana süreçler + aktif alt süreçleri (eski/pasif süreçler görünmez)."""
     db = get_db()
     try:
-        tum = db.query(Process).order_by(Process.kod).all()
-        eski_goster = Config.ESKI_SURECLERI_GOSTER or request.args.get("eski") == "1"
-        # Haritada: aktif ana süreçler (alt süreçler kart içinde). Eski DB'de alanlar boş → tümü gösterilir (eski davranış).
-        procs = [p for p in tum if p.ust_surec_id is None and (p.aktif_mi or eski_goster)]
-        pasif_sayisi = sum(1 for p in tum if not p.aktif_mi)
-        return render_template("processes.html", processes=procs, pasif_sayisi=pasif_sayisi, eski_goster=eski_goster)
+        tum = [p for p in db.query(Process).order_by(Process.kod).all() if p.aktif_mi]
+        ust = [p for p in tum if p.ust_surec_id is None]
+        alt_map = {}
+        for p in tum:
+            if p.ust_surec_id is not None:
+                alt_map.setdefault(p.ust_surec_id, []).append(p)
+        sayilar = _surec_sayilari(db, [p.id for p in tum])
+        harita = {}
+        for p in ust:
+            alt = sorted(alt_map.get(p.id, []), key=lambda x: x.kod)
+            toplam = {k: sayilar[p.id][k] + sum(sayilar[a.id][k] for a in alt) for k in sayilar[p.id]}
+            harita[p.kod] = {"p": p, "alt": alt, "say": toplam, "alt_say": {a.id: sayilar[a.id] for a in alt}}
+        return render_template("processes.html", harita=harita, tipler=_SUREC_TIPLERI)
     finally:
         db.close()
 
@@ -1119,10 +1147,32 @@ def process_detail(process_id):
 
         all_processes = [p for p in db.query(Process).order_by(Process.kod).all() if p.aktif_mi or p.id == proc.id]
         tum_docs = db.query(Document).filter(Document.surec_id.in_([proc.id] + [a.id for a in alt_surecler])).all()
+        # Bağlı DYS modülleri (data/modul_dokumanlari.json): dokümanı bu sürece / alt süreçlerine ait olan modüller
+        kodlar = [proc.kod] + [a.kod for a in alt_surecler]
+        moduller = []
+        try:
+            import modul_dokuman, modul_routes
+            modul_dokuman._yukle()
+            for m in modul_dokuman._ON["moduller"]:
+                n = sum(1 for d in m.get("dokumanlar", []) if any((d.get("no") or "").startswith(k + " ") for k in kodlar))
+                if n and modul_routes.modul_acik(m.get("id")):
+                    moduller.append({"id": m["id"], "baslik": m.get("baslik") or m.get("eski_baslik"), "yol": m.get("yol"),
+                                     "standart": m.get("standart"), "madde": m.get("madde"), "n": n})
+        except Exception:
+            logger.exception("Süreç modül bağlantıları okunamadı (process_id=%s)", process_id)
+        sayilar = _surec_sayilari(db, [proc.id] + [a.id for a in alt_surecler])
+        toplam_say = {k: sum(v[k] for v in sayilar.values()) for k in sayilar[proc.id]}
+        # Tipe göre gruplu liste (sabit sıra; tanımsız tipler sonda)
+        TIP_SIRA = ["Politika", "El Kitabı", "Prosedür", "İş Akışı", "Talimat", "Form", "Görev Tanımı"]
+        gruplar = {}
+        for d in filtered_docs:
+            gruplar.setdefault(d.dokuman_tipi or "Diğer", []).append(d)
+        gruplar = sorted(gruplar.items(), key=lambda kv: (TIP_SIRA.index(kv[0]) if kv[0] in TIP_SIRA else 99, kv[0]))
         return render_template(
             "process_detail.html",
             process=proc, filtered_docs=filtered_docs, processes=all_processes,
             alt_surecler=alt_surecler, tum_docs=tum_docs, secili_alt=alt,
+            moduller=moduller, toplam_say=toplam_say, alt_say=sayilar, gruplar=gruplar, tipler=_SUREC_TIPLERI,
         )
     finally:
         db.close()
@@ -1166,7 +1216,7 @@ def documents():
         docs = query.order_by(Document.dokuman_no).all()
         # Merkezî erişim politikası: gizli dokümanlar yetkisiz kullanıcılardan gizlenir.
         docs = authz.accessible_documents(db, session.get("user_id"), session.get("rol"), docs)
-        procs = db.query(Process).order_by(Process.kod).all()
+        procs = [p for p in db.query(Process).order_by(Process.kod).all() if p.aktif_mi or str(p.id) == (surec or "")]
 
         return render_template("documents.html", documents=docs, processes=procs)
     finally:
@@ -4385,6 +4435,11 @@ import kalite_routes  # noqa: E402,F401  — Kalite: Tedarikçi Uygunsuzlukları
 import teknik_resim_routes  # noqa: E402,F401  2026 — teknik resim takip ve revizyon
 import bakim_routes  # noqa: E402,F401  2026 — D03 Bakım Formu (tek form: makine / kalıp + bakım türü)
 import fmea_sayfa_routes  # noqa: E402,F401  2026 — FMEA çalışma sayfaları (D / P / MSR, GSI-RD-370)
+import fmea_modul_routes  # noqa: E402,F401  2026 — FMEA Modülü (referans uygulama birebir; kayıt DYS veritabanında)
+import urun_proses_routes  # noqa: E402,F401  2026 — Ürün prosesi: FMEA + kontrol planı otomatik, yalnız ölçü girişi
+import ppap_dosya_routes  # noqa: E402,F401  2026 — PPAP dosyası: ürün ağacı → otomatik iş akışı + FMEA + kontrol planı + revizyon
+import dogrulama_routes  # noqa: E402,F401  2026 — D04 F03 Mastar & Cihaz Doğrulama
+import yeniden_islem_routes  # noqa: E402,F401  2026 — Yeniden İşlem Takip (D06 F06)
 
 
 if __name__ == "__main__":

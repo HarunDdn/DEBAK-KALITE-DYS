@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Doğrulama Raporu{% endblock %}
+{% block breadcrumb %}<span class="separator">›</span><a href="{{ url_for('dogrulama_liste') }}">Doğrulama</a><span class="separator">›</span><span>Rapor</span>{% endblock %}
+{% block content %}
+<style>.dg-b{display:inline-block;font-size:11px;font-weight:800;padding:2px 8px;border-radius:5px;}.dg-OK{background:#d9f2e0;color:#166534;}.dg-NOK{background:#fde2e2;color:#b91c1c;}
+.rp-t{width:100%;border-collapse:collapse;font-size:13px;}.rp-t th,.rp-t td{border-bottom:1px solid var(--border);padding:6px 8px;text-align:left;vertical-align:middle;}.rp-t th{background:var(--bg-secondary);font-size:11px;text-transform:uppercase;}
+.rp-h{display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:8px 8px 0 0;font-weight:800;font-size:15px;}.h0{background:#fde2e2;color:#b91c1c;}.h1{background:#fff1c2;color:#92600a;}.h2{background:#ede9fe;color:#5b21b6;}.h3{background:#eee;color:#444;}
+.gec{color:#b91c1c;font-weight:800;}.kal{color:#92600a;font-weight:800;}
+@media print{.no-print{display:none!important;}.section-card{break-inside:avoid;}}</style>
+<div class="mb-16 d-flex align-center justify-between" style="flex-wrap:wrap;gap:10px;">
+  <div><h2 style="font-size:20px;font-weight:700;">📋 Doğrulama Raporu <span class="text-muted" style="font-size:13px;font-weight:400;">{{ bugun.strftime('%d.%m.%Y') }}{% if grup %} · {{ grup }}{% endif %} · {{ toplam }} aktif mastar / cihaz</span></h2>
+    <p class="text-muted" style="font-size:13px;">Tarihi geçen doğrulamalar en başta; en çok geciken en üstte.</p></div>
+  <div class="no-print" style="display:flex;gap:8px;flex-wrap:wrap;"><a href="{{ url_for('dogrulama_rapor', excel=1, grup=grup) }}" class="btn btn-outline">📊 Excel (sayfa sayfa)</a><button class="btn btn-outline" onclick="window.print()">🖨️ Yazdır</button><a href="{{ url_for('dogrulama_liste') }}" class="btn btn-outline">⬅️ Liste</a></div>
+</div>
+<div class="no-print" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">
+  <a class="btn {{ 'btn-outline' if grup else 'btn-primary' }}" href="{{ url_for('dogrulama_rapor') }}" style="padding:3px 12px;">Tüm gruplar</a>
+  {% for g in gruplar %}<a class="btn {{ 'btn-primary' if grup == g else 'btn-outline' }}" href="{{ url_for('dogrulama_rapor', grup=g) }}" style="padding:3px 12px;">{{ g }}</a>{% endfor %}</div>
+
+<div class="section-card mb-16"><div class="section-header"><span class="section-title">Özet (gruba göre)</span></div><div class="section-body" style="padding:0;overflow-x:auto;">
+  <table class="rp-t"><thead><tr><th>Grup</th><th>Toplam</th><th>Geciken (≤ 1 yıl)</th><th>1 yıldan eski</th><th>30 gün içinde</th><th>Son karar NOK</th><th>Doğrulama kaydı yok</th></tr></thead><tbody>
+  {% for g, o in ozet.items() %}<tr><td><b>{{ g }}</b></td><td>{{ o.toplam }}</td><td class="{{ 'gec' if o.geciken }}">{{ o.geciken }}</td><td>{{ o.eski }}</td><td class="{{ 'kal' if o.ay }}">{{ o.ay }}</td><td>{{ o.nok }}</td><td>{{ o.yok }}</td></tr>{% endfor %}
+  <tr style="font-weight:800;"><td>Toplam</td><td>{{ toplam }}</td><td class="gec">{{ gec|length }}</td><td>{{ eski|length }}</td><td class="kal">{{ yak|length }}</td><td>{{ nok|length }}</td><td>{{ yok|length }}</td></tr></tbody></table></div></div>
+
+{% macro tablo(L, mod) %}
+<table class="rp-t"><thead><tr><th>{{ 'Gecikme' if mod in ('g', 'e') else 'Kalan' if mod == 'y' else 'Son karar' }}</th><th>No</th><th>Ad</th><th>Grup / ürün</th><th>Sıklık</th><th>Son doğrulama</th><th>Planlanan</th><th>Son yapan</th><th>Kullanım yeri</th><th class="no-print"></th></tr></thead><tbody>
+{% for k, d in L %}<tr><td>{% if mod == 'g' %}<span class="gec">{{ -d.kalan }} gün</span>{% elif mod == 'e' %}<span>{{ (-d.kalan / 365)|round(1) }} yıl</span>{% elif mod == 'y' %}<span class="kal">{{ 'Bugün' if d.kalan == 0 else d.kalan ~ ' gün' }}</span>{% elif d.karar %}<span class="dg-b dg-{{ d.karar }}">{{ d.karar }}</span>{% else %}—{% endif %}</td>
+  <td><a href="{{ url_for('dogrulama_kart', kid=k.id) }}"><b>{{ k.no }}</b></a></td><td>{{ k.ad }}</td><td>{{ k.grup or '' }}{% if k.urun %}<br><small class="text-muted">{{ k.urun }}</small>{% endif %}</td><td>{{ (k.dogrulama_ay ~ ' ay') if k.dogrulama_ay else '—' }}</td>
+  <td>{{ d.son.strftime('%d.%m.%Y') if d.son else '—' }}</td><td>{{ d.gelecek.strftime('%d.%m.%Y') if d.gelecek else '—' }}</td><td>{{ d.yapan or '' }}</td><td>{{ k.kullanim_yeri or '' }}</td>
+  <td class="no-print"><a href="{{ url_for('dogrulama_kart', kid=k.id) }}#dogrula" class="btn btn-primary" style="padding:2px 10px;font-size:12px;">🔬 Doğrula</a></td></tr>{% endfor %}</tbody></table>
+{% endmacro %}
+
+<div class="section-card mb-16"><div class="rp-h h0">⛔ Tarihi geçenler (son 1 yıl) — doğrulaması yapılmamış ({{ gec|length }})</div><div class="section-body" style="padding:0;overflow-x:auto;">
+  {% if gec %}{{ tablo(gec, 'g') }}{% else %}<p class="text-muted" style="padding:14px;">Geciken doğrulama yok. 👍</p>{% endif %}</div></div>
+<div class="section-card mb-16"><div class="rp-h h3">🕸️ 1 yıldan uzun süredir doğrulanmayanlar ({{ eski|length }}) — kullanımda değilse pasife alın</div><div class="section-body" style="padding:0;overflow-x:auto;">
+  {% if eski %}{{ tablo(eski, 'e') }}{% else %}<p class="text-muted" style="padding:14px;">Yok.</p>{% endif %}</div></div>
+<div class="section-card mb-16"><div class="rp-h h1">⏳ 30 gün içinde dolacaklar ({{ yak|length }})</div><div class="section-body" style="padding:0;overflow-x:auto;">
+  {% if yak %}{{ tablo(yak, 'y') }}{% else %}<p class="text-muted" style="padding:14px;">Yok.</p>{% endif %}</div></div>
+<div class="section-card mb-16"><div class="rp-h h2">⚠️ Son doğrulama kararı NOK ({{ nok|length }})</div><div class="section-body" style="padding:0;overflow-x:auto;">
+  {% if nok %}{{ tablo(nok, 'n') }}{% else %}<p class="text-muted" style="padding:14px;">Yok.</p>{% endif %}</div></div>
+<div class="section-card mb-16"><div class="rp-h h3">❔ Doğrulama kaydı / sıklığı olmayanlar ({{ yok|length }})</div><div class="section-body" style="padding:0;overflow-x:auto;">
+  {% if yok %}{{ tablo(yok, 'n') }}{% else %}<p class="text-muted" style="padding:14px;">Yok.</p>{% endif %}</div></div>
+{% endblock %}

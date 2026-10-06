@@ -8,9 +8,9 @@
     <p class="text-muted" style="font-size:13px;">Toplam <strong>{{ kayitlar|length }}</strong> kayıt</p>
   </div>
   <div class="d-flex" style="gap:8px;flex-wrap:wrap;">
-  <a href="{{ url_for('fmea_sayfalar') }}" class="btn btn-outline" style="text-decoration:none;" title="D-FMEA / P-FMEA / FMEA-MSR, GSI-RD-370 Rev. C02">📑 Çalışma Sayfaları (D / P / MSR)</a>
+  <a href="{{ url_for('fmea_modul') }}" class="btn btn-primary" style="text-decoration:none;" title="D-FMEA / P-FMEA / FMEA-MSR, Valeo GSI-RD-370 Rev. C02">📑 FMEA Modülü (D / P / MSR)</a>
   {% if session.rol in ('Admin','Doküman Kontrol') %}
-  <a href="{{ url_for('fmea_new') }}" class="btn btn-primary" style="text-decoration:none;">
+  <a href="{{ url_for('fmea_new') }}" class="btn btn-outline" style="text-decoration:none;">
     <span style="font-size:16px;">＋</span> Yeni FMEA
   </a>
   {% endif %}

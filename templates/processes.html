@@ -1,193 +1,98 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 {% block title %}Süreç Haritası{% endblock %}
+{% block head %}{% include "_surec_css.html" %}{% endblock %}
 
 {% block breadcrumb %}
 <span class="separator">›</span>
 <span>Süreç Haritası</span>
 {% endblock %}
 
-{% block content %}
-<div class="d-flex align-center justify-between mb-24">
-    <div>
-        <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 4px;">Süreç Haritası</h2>
-        <p class="text-muted" style="font-size: 13px;">Organizasyondaki tüm süreçler ve bağlı dokümanlar</p>
-    </div>
-    {% if pasif_sayisi %}
-    <a class="btn btn-outline" href="{{ request.script_root }}/processes{{ '' if eski_goster else '?eski=1' }}">
-        {{ 'Eski süreçleri gizle' if eski_goster else 'Eski süreçleri göster (' ~ pasif_sayisi ~ ')' }}
+{% macro sayac(say) %}
+<div class="sh-say">
+    {% for t in tipler %}
+    <div class="{{ 'z' if not say[t] }}" title="{{ t }}"><b>{{ say[t] }}</b><small>{{ {'Prosedür':'Prosedür','İş Akışı':'İş akışı','Talimat':'Talimat','Form':'Form'}[t] }}</small></div>
+    {% endfor %}
+</div>
+{% endmacro %}
+
+{% macro kutu(k, sinif) %}
+{% set p = k.p %}
+<div class="sh-box {{ sinif }}">
+    <a href="{{ request.script_root }}/processes/{{ p.id }}" class="sh-head">
+        <span class="sh-kod">{{ p.kod }}</span>
+        <span class="sh-ad">{{ p.ad }}</span>
     </a>
+    <div class="sh-meta">{{ k.alt|length }} alt süreç · {{ k.say.toplam }} doküman</div>
+    {% if k.alt %}
+    <div class="sh-alt">
+        {% for a in k.alt %}
+        <a href="{{ request.script_root }}/processes/{{ a.id }}" title="{{ a.kod }} {{ a.ad }}"><span>{{ a.kod }} {{ a.ad }}</span><span class="n">{{ k.alt_say[a.id].toplam }}</span></a>
+        {% endfor %}
+    </div>
     {% endif %}
+    {{ sayac(k.say) }}
+</div>
+{% endmacro %}
+
+{% block content %}
+<div class="mb-24">
+    <h2 style="font-size:20px;font-weight:700;margin-bottom:4px;">Süreç Haritası</h2>
+    <p class="text-muted" style="font-size:13px;">Yürürlükteki süreç yapısı: yönetim, operasyon akışı ve destek süreçleri. Bir sürece tıklayarak alt süreçlerini ve dokümanlarını görün.</p>
 </div>
 
-<!-- Process Map Visual -->
-<div class="section-card mb-24">
-    <div class="section-header">
-        <span class="section-title">🗺️ Süreç Haritası Görünümü</span>
-    </div>
-    <div class="section-body">
-        <div class="process-map-visual">
-            <!-- Yönetim Süreçleri -->
-            <div class="process-map-row">
-                <div class="process-map-label yonetim">Yönetim</div>
-                <div class="process-map-items">
-                    {% for p in processes if p.kategori == 'Yönetim' %}
-                    <a href="{{ request.script_root }}/processes/{{ p.id }}" class="process-map-item yonetim">
-                        <strong>{{ p.kod }}</strong> {{ p.ad }}
-                    </a>
-                    {% endfor %}
-                </div>
+<div class="sh-wrap">
+    {# ── Yönetim ── #}
+    {% if harita.get('Y01') %}
+    {% set y = harita['Y01'] %}
+    <div class="sh-band sh-yon">
+        <div class="sh-band-title"><i></i> Yönetim</div>
+        <div class="sh-yon-in">
+            <div class="sh-box yonetim">
+                <a href="{{ request.script_root }}/processes/{{ y.p.id }}" class="sh-head"><span class="sh-kod">{{ y.p.kod }}</span><span class="sh-ad">{{ y.p.ad }}</span></a>
+                <div class="sh-meta">{{ y.alt|length }} alt süreç · {{ y.say.toplam }} doküman</div>
+                {{ sayac(y.say) }}
             </div>
-
-            <!-- Ana Süreçler -->
-            <div class="process-map-row">
-                <div class="process-map-label ana">Ana Süreçler</div>
-                <div class="process-map-items">
-                    {% for p in processes if p.kategori == 'Ana' %}
-                    <a href="{{ request.script_root }}/processes/{{ p.id }}" class="process-map-item ana">
-                        <strong>{{ p.kod }}</strong> {{ p.ad }}
-                    </a>
-                    {% endfor %}
-                </div>
-            </div>
-
-            <!-- Destek Süreçleri -->
-            <div class="process-map-row">
-                <div class="process-map-label destek">Destek</div>
-                <div class="process-map-items">
-                    {% for p in processes if p.kategori == 'Destek' %}
-                    <a href="{{ request.script_root }}/processes/{{ p.id }}" class="process-map-item destek">
-                        <strong>{{ p.kod }}</strong> {{ p.ad }}
-                    </a>
-                    {% endfor %}
-                </div>
+            <div class="sh-yon-alt">
+                {% for a in y.alt %}
+                <a href="{{ request.script_root }}/processes/{{ a.id }}" title="{{ a.kod }} {{ a.ad }}"><span>{{ a.kod }} {{ a.ad }}</span><span class="n">{{ y.alt_say[a.id].toplam }}</span></a>
+                {% endfor %}
             </div>
         </div>
     </div>
-</div>
+    {% endif %}
 
-<!-- Yönetim Süreçleri -->
-<div class="process-category">
-    <div class="process-category-title">
-        <span class="cat-dot yonetim"></span>
-        Yönetim Süreçleri
+    {# ── Operasyon akışı ── #}
+    <div class="sh-band sh-ops">
+        <div class="sh-band-title"><i></i> Operasyon akışı</div>
+        <div class="sh-flow">
+            <div class="sh-io">Müşteri isteği<small>girdi</small></div>
+            {% for kod in ['M01','M02','M03','M04'] if harita.get(kod) %}
+            <div class="sh-arr">→</div>
+            {{ kutu(harita[kod], 'ana') }}
+            {% endfor %}
+            <div class="sh-arr">→</div>
+            <div class="sh-io">Ürün ve müşteri memnuniyeti<small>çıktı</small></div>
+        </div>
     </div>
-    <div class="process-grid">
-        {% for p in processes if p.kategori == 'Yönetim' %}
-        <a href="{{ request.script_root }}/processes/{{ p.id }}" class="process-card yonetim">
-            <div class="process-card-header">
-                <span class="process-code">{{ p.kod }}</span>
-                <span class="process-name">{{ p.ad }}</span>
-            </div>
-            <div class="process-card-body">
-                {% set alt = ((p.alt_surecler or []) if eski_goster else (p.alt_surecler or [])|selectattr('aktif_mi')|list)|sort(attribute='kod') %}
-                {% set ns = namespace(n=p.documents|length) %}{% for a in alt %}{% set ns.n = ns.n + a.documents|length %}{% endfor %}
-                <span class="process-doc-count"><strong>{{ ns.n }}</strong> doküman{% if alt %} · {{ alt|length }} alt süreç{% endif %}{% if not p.aktif_mi %} · <span class="status-badge gray">Pasif (eski yapı)</span>{% endif %}</span>
-                {% if alt %}
-                <div class="text-muted" style="font-size:11px;margin-top:6px;line-height:1.5;">
-                    {% for a in alt %}<div>{{ a.kod }} {{ a.ad }} ({{ a.documents|length }})</div>{% endfor %}
-                </div>
-                {% endif %}
-                <div class="process-standards">
-                    {% if 'IATF' in (p.ilgili_standartlar or '') %}
-                    <span class="std-badge iatf">IATF</span>
-                    {% endif %}
-                    {% if '14001' in (p.ilgili_standartlar or '') %}
-                    <span class="std-badge iso14001">14001</span>
-                    {% endif %}
-                    {% if '45001' in (p.ilgili_standartlar or '') %}
-                    <span class="std-badge iso45001">45001</span>
-                    {% endif %}
-                    {% if '27001' in (p.ilgili_standartlar or '') %}
-                    <span class="std-badge iso27001">27001</span>
-                    {% endif %}
-                </div>
-            </div>
-        </a>
-        {% endfor %}
-    </div>
-</div>
 
-<!-- Ana Süreçler -->
-<div class="process-category">
-    <div class="process-category-title">
-        <span class="cat-dot ana"></span>
-        Ana Süreçler
+    {# ── Destek ── #}
+    <div class="sh-band sh-des">
+        <div class="sh-band-title"><i></i> Destek süreçleri</div>
+        <div class="sh-grid6">
+            {% for kod in ['D01','D02','D03','D04','D05','D06'] if harita.get(kod) %}
+            {{ kutu(harita[kod], 'destek') }}
+            {% endfor %}
+        </div>
     </div>
-    <div class="process-grid">
-        {% for p in processes if p.kategori == 'Ana' %}
-        <a href="{{ request.script_root }}/processes/{{ p.id }}" class="process-card ana">
-            <div class="process-card-header">
-                <span class="process-code">{{ p.kod }}</span>
-                <span class="process-name">{{ p.ad }}</span>
-            </div>
-            <div class="process-card-body">
-                {% set alt = ((p.alt_surecler or []) if eski_goster else (p.alt_surecler or [])|selectattr('aktif_mi')|list)|sort(attribute='kod') %}
-                {% set ns = namespace(n=p.documents|length) %}{% for a in alt %}{% set ns.n = ns.n + a.documents|length %}{% endfor %}
-                <span class="process-doc-count"><strong>{{ ns.n }}</strong> doküman{% if alt %} · {{ alt|length }} alt süreç{% endif %}{% if not p.aktif_mi %} · <span class="status-badge gray">Pasif (eski yapı)</span>{% endif %}</span>
-                {% if alt %}
-                <div class="text-muted" style="font-size:11px;margin-top:6px;line-height:1.5;">
-                    {% for a in alt %}<div>{{ a.kod }} {{ a.ad }} ({{ a.documents|length }})</div>{% endfor %}
-                </div>
-                {% endif %}
-                <div class="process-standards">
-                    {% if 'IATF' in (p.ilgili_standartlar or '') %}
-                    <span class="std-badge iatf">IATF</span>
-                    {% endif %}
-                    {% if '14001' in (p.ilgili_standartlar or '') %}
-                    <span class="std-badge iso14001">14001</span>
-                    {% endif %}
-                    {% if '45001' in (p.ilgili_standartlar or '') %}
-                    <span class="std-badge iso45001">45001</span>
-                    {% endif %}
-                    {% if '27001' in (p.ilgili_standartlar or '') %}
-                    <span class="std-badge iso27001">27001</span>
-                    {% endif %}
-                </div>
-            </div>
-        </a>
-        {% endfor %}
-    </div>
-</div>
 
-<!-- Destek Süreçleri -->
-<div class="process-category">
-    <div class="process-category-title">
-        <span class="cat-dot destek"></span>
-        Destek Süreçleri
+    {# Beklenmeyen aktif ana süreç varsa haritada kaybolmasın #}
+    {% set bilinen = ['Y01','M01','M02','M03','M04','D01','D02','D03','D04','D05','D06'] %}
+    {% set digerler = harita.values()|rejectattr('p.kod','in',bilinen)|list %}
+    {% if digerler %}
+    <div class="sh-band">
+        <div class="sh-band-title"><i></i> Diğer süreçler</div>
+        <div class="sh-grid6">{% for k in digerler %}{{ kutu(k, 'destek') }}{% endfor %}</div>
     </div>
-    <div class="process-grid">
-        {% for p in processes if p.kategori == 'Destek' %}
-        <a href="{{ request.script_root }}/processes/{{ p.id }}" class="process-card destek">
-            <div class="process-card-header">
-                <span class="process-code">{{ p.kod }}</span>
-                <span class="process-name">{{ p.ad }}</span>
-            </div>
-            <div class="process-card-body">
-                {% set alt = ((p.alt_surecler or []) if eski_goster else (p.alt_surecler or [])|selectattr('aktif_mi')|list)|sort(attribute='kod') %}
-                {% set ns = namespace(n=p.documents|length) %}{% for a in alt %}{% set ns.n = ns.n + a.documents|length %}{% endfor %}
-                <span class="process-doc-count"><strong>{{ ns.n }}</strong> doküman{% if alt %} · {{ alt|length }} alt süreç{% endif %}{% if not p.aktif_mi %} · <span class="status-badge gray">Pasif (eski yapı)</span>{% endif %}</span>
-                {% if alt %}
-                <div class="text-muted" style="font-size:11px;margin-top:6px;line-height:1.5;">
-                    {% for a in alt %}<div>{{ a.kod }} {{ a.ad }} ({{ a.documents|length }})</div>{% endfor %}
-                </div>
-                {% endif %}
-                <div class="process-standards">
-                    {% if 'IATF' in (p.ilgili_standartlar or '') %}
-                    <span class="std-badge iatf">IATF</span>
-                    {% endif %}
-                    {% if '14001' in (p.ilgili_standartlar or '') %}
-                    <span class="std-badge iso14001">14001</span>
-                    {% endif %}
-                    {% if '45001' in (p.ilgili_standartlar or '') %}
-                    <span class="std-badge iso45001">45001</span>
-                    {% endif %}
-                    {% if '27001' in (p.ilgili_standartlar or '') %}
-                    <span class="std-badge iso27001">27001</span>
-                    {% endif %}
-                </div>
-            </div>
-        </a>
-        {% endfor %}
-    </div>
+    {% endif %}
 </div>
 {% endblock %}

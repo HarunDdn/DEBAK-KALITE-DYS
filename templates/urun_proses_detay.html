@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}{{ u.urun_adi }} — Proses akışı{% endblock %}
+{% block breadcrumb %}<span class="separator">›</span><a href="{{ url_for('urun_proses_liste') }}">Ürün Prosesi</a><span class="separator">›</span><span>{{ u.urun_adi }}</span>{% endblock %}
+{% block content %}
+{% include '_up_editor.html' %}
+<style>.up-ak{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:6px 0 4px;}.up-ak .a{padding:6px 12px;border-radius:18px;border:1px solid var(--border);background:var(--bg-secondary);font-size:13px;font-weight:600;text-decoration:none;color:inherit;}.up-ak .o{color:var(--text-muted);}
+.up-sec{border-left:4px solid var(--color-primary);}</style>
+<div class="mb-16 d-flex align-center justify-between" style="flex-wrap:wrap;gap:10px;">
+  <div><div class="text-muted" style="font-size:12px;">{{ u.musteri }}{% if u.urun_kodu %} · {{ u.urun_kodu }}{% endif %}</div>
+    <h2 style="font-size:20px;font-weight:700;">🧭 {{ u.urun_adi }}</h2></div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><span id="up-sav" class="up-sav"></span>
+    <a href="{{ url_for('urun_ppap', uid=u.id) }}" class="btn btn-primary">📑 PPAP dosyası</a>
+    <a href="{{ url_for('urun_proses_agac', uid=u.id) }}" class="btn btn-outline">🌳 Ürün ağacı</a>
+    <a href="{{ url_for('urun_proses_olcum', uid=u.id) }}" class="btn btn-outline">📏 Ölçü gir</a>
+    <a href="{{ url_for('urun_proses_olcumler', uid=u.id) }}" class="btn btn-outline">📈 Ölçüler / istatistik</a>
+    <a href="{{ url_for('urun_proses_kontrol_plani', uid=u.id) }}" class="btn btn-outline">📊 Kontrol planı + FMEA (Excel)</a>
+    <a href="{{ url_for('urun_proses_liste') }}" class="btn btn-outline">⬅️ Ürünler</a></div>
+</div>
+<div class="section-card mb-16"><div class="section-header"><span class="section-title">Proses akışı</span><span class="up-badge" style="background:{{ '#dbeafe' if std == 'VDA' else '#fde2e2' }};">FMEA: {{ standartlar[std] }}</span><span class="text-muted" style="font-size:12px;">{{ adimlar|length }} adım</span></div>
+  <div class="section-body">
+    {% if adimlar %}<div class="up-ak">{% for a in adimlar %}<a class="a" href="#adim-{{ a.uid }}">{{ loop.index }}. {{ a.ad }}</a>{% if not loop.last %}<span class="o">→</span>{% endif %}{% endfor %}</div>
+    {% else %}<p class="text-muted">Henüz adım yok. Aşağıdan proses adımlarını sırayla ekleyin; FMEA ve kontrol planı otomatik gelir.</p>{% endif %}
+    {% if yonetici %}<form method="POST" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="adim_ekle">
+      <select name="adim_tanim_id" class="form-control" style="max-width:300px;" required>{% for k in katalog %}<option value="{{ k.id }}">{{ k.ad }}</option>{% endfor %}</select><button class="btn btn-primary" type="submit">＋ Adımı akışa ekle</button>
+      <a href="{{ url_for('urun_proses_kutuphane') }}" class="text-muted" style="align-self:center;font-size:12px;">Katalog / şablonlar</a></form>{% endif %}
+  </div></div>
+
+{% for a in adimlar %}
+<div class="section-card mb-16 up-sec" id="adim-{{ a.uid }}">
+  <div class="section-header" style="flex-wrap:wrap;gap:8px;"><span class="section-title">{{ loop.index }}. {{ a.ad }}</span>
+    <span style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:12px;">
+      {% for k, l in (('H','Yüksek'),('M','Orta'),('L','Düşük')) %}{% if a.ozet.guncel[k] %}<span class="up-badge up-{{ k }}">{{ l }} {{ a.ozet.guncel[k] }}</span>{% endif %}{% endfor %}
+      <span class="text-muted">ölçüme hazır: {{ a.olcum_hazir }}</span>
+      <a href="{{ url_for('urun_proses_olcum', uid=u.id, adim=a.uid) }}" class="btn btn-primary" style="font-size:12px;padding:2px 10px;">📏 Ölçü gir</a>
+      {% if yonetici %}<form method="POST" style="display:inline-flex;gap:3px;"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="uadim" value="{{ a.uid }}">
+        <button name="action" value="yukari" class="btn btn-outline" style="padding:1px 6px;" title="Yukarı">▲</button><button name="action" value="asagi" class="btn btn-outline" style="padding:1px 6px;" title="Aşağı">▼</button>
+        {% if a.eksik_sablon %}<button name="action" value="sablon" class="btn btn-outline" style="padding:1px 8px;" title="Şablonda sonradan eklenen satırlar">Şablondan {{ a.eksik_sablon }} eksik getir</button>{% endif %}
+        <button name="action" value="adim_sil" class="btn btn-outline" style="padding:1px 6px;" onclick="return confirm('Adım akıştan çıkarılsın mı? (ürüne özgü FMEA / kontrol planı satırları da silinir)')">🗑</button></form>{% endif %}
+    </span></div>
+  <div class="section-body">
+    <h4 style="font-size:13px;margin:0 0 4px;">⚠️ FMEA <span class="text-muted" style="font-weight:400;">— gri satırlar adımın genel (şablon) FMEA'sıdır, otomatik gelir; altına ürüne özgü satır eklenebilir</span></h4>
+    <div id="fm-{{ a.uid }}"></div>
+    <h4 style="font-size:13px;margin:16px 0 4px;">📋 Kontrol planı <span class="text-muted" style="font-weight:400;">— nominal / alt-üst limit girilen satırlar ölçü girişinde görünür</span></h4>
+    <div id="kp-{{ a.uid }}"></div>
+  </div>
+</div>
+<script>(function(){
+  const G={{ a.genel|tojson }}, O={{ a.ozel|tojson }}, KP={{ a.kp|tojson }}, TID={{ a.tanim_id }}, UP={{ u.id }}, ED={{ 'true' if yonetici else 'false' }};
+  const opt=()=>G.concat(O).map(r=>[r.id,(r.mode||'(hata modu yok)').slice(0,40)+(r.ap?' · '+UPAD[r.ap]:'')]);
+  upTablo(document.getElementById('fm-{{ a.uid }}'),'fmea',O,{tid:TID,up:UP,edit:ED,ro:G});
+  upTablo(document.getElementById('kp-{{ a.uid }}'),'kp',KP,{tid:TID,up:UP,edit:ED,fmeaOpt:opt});
+})();</script>
+{% endfor %}
+
+{% if yonetici %}
+<div class="section-card"><div class="section-header"><span class="section-title">✏️ Ürün bilgileri</span></div><div class="section-body">
+  <form method="POST"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="bilgi">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;">
+      <div class="form-group"><label class="form-label">Ürün adı *</label><input name="urun_adi" class="form-control" required value="{{ u.urun_adi }}"></div>
+      <div class="form-group"><label class="form-label">Ürün kodu</label><input name="urun_kodu" class="form-control" value="{{ u.urun_kodu or '' }}"></div>
+      <div class="form-group"><label class="form-label">FMEA standardı</label><select name="fmea_standart" class="form-control">{% for k, ad in standartlar.items() %}<option value="{{ k }}" {% if std == k %}selected{% endif %}>{{ ad }}</option>{% endfor %}</select></div>
+      <div class="form-group" style="grid-column:1/-1;"><label class="form-label">Açıklama</label><input name="aciklama" class="form-control" maxlength="500" value="{{ u.aciklama or '' }}"></div></div>
+    <label style="font-size:13px;display:flex;align-items:center;gap:6px;margin-bottom:8px;"><input type="checkbox" name="aktif" value="1" {% if u.aktif != false %}checked{% endif %}> Aktif</label>
+    <button class="btn btn-outline" type="submit">Kaydet</button></form></div></div>
+{% endif %}
+<p class="text-muted" style="font-size:12px;margin-top:10px;">Derecelendirmeler yönlendirme amaçlıdır; AP yalnız matristen hesaplanır, RPN yalnız bilgidir. Nihai karar FMEA ekibine aittir.</p>
+{% endblock %}
