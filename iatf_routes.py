@@ -4,6 +4,7 @@ DYS — IATF Modül Route'ları (SPC & CSR)
 IATF 16949 § 9.1.1.1 (SPC) ve Müşteriye Özel Gereklilikler (CSR) yönetimi.
 """
 
+from sqlalchemy import case as _sa_case
 import json
 from datetime import date, datetime
 from flask import render_template, request, redirect, url_for, flash, abort, session, jsonify, send_file
@@ -293,7 +294,7 @@ def iatf_calibration():
             flash("Kalibrasyon / MSA Ekipmanı başarıyla kaydedildi.", "success")
             return redirect(url_for("iatf_calibration"))
             
-        tum = db.query(CalibrationEquipment).order_by(CalibrationEquipment.sonraki_kalibrasyon.asc().nullslast()).all()
+        tum = db.query(CalibrationEquipment).order_by(_sa_case((CalibrationEquipment.sonraki_kalibrasyon.is_(None), 1), else_=0), CalibrationEquipment.sonraki_kalibrasyon.asc()).all()
         bugun = date.today()
         geciken = [k for k in tum if k.sonraki_kalibrasyon and k.sonraki_kalibrasyon < bugun and k.durum not in ("Pasif", "Kullanım Dışı")]
         # 2026 — arama / filtre (D04 F06 listesi yüzlerce cihaz içerir)

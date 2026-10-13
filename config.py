@@ -141,6 +141,30 @@ def _build_database_url():
     ).render_as_string(hide_password=False)
 
 
+def _build_canias_url():
+    """CANIAS ERP (IAS) veritabanı bağlantısı — DYS_CANIAS_* ile. Yoksa '' (özellik kapalı).
+
+    Sunucu/kullanıcı verilmezse DYS_MSSQL_* değerlerine düşer (aynı SQL Server örneği).
+    Veritabanı adı (DYS_CANIAS_DATABASE) zorunludur; IASCUSTOMER sorgusu bu veritabanında çalışır.
+    """
+    database = (os.environ.get("DYS_CANIAS_DATABASE") or "").strip()
+    if not database:
+        return ""
+    from sqlalchemy.engine import URL
+    server = (os.environ.get("DYS_CANIAS_SERVER") or os.environ.get("DYS_MSSQL_SERVER") or "").strip()
+    if not server:
+        return ""
+    driver = os.environ.get("DYS_CANIAS_DRIVER", os.environ.get("DYS_MSSQL_DRIVER", "ODBC Driver 17 for SQL Server"))
+    query = {"driver": driver, "TrustServerCertificate": "yes"}
+    if _bool("DYS_CANIAS_TRUSTED", False):
+        query["Trusted_Connection"] = "yes"
+        return URL.create("mssql+pyodbc", host=server, database=database, query=query).render_as_string(hide_password=False)
+    user = (os.environ.get("DYS_CANIAS_USER") or os.environ.get("DYS_MSSQL_USER") or "").strip()
+    password = os.environ.get("DYS_CANIAS_PASSWORD") or os.environ.get("DYS_MSSQL_PASSWORD") or ""
+    return URL.create("mssql+pyodbc", username=user, password=password, host=server,
+                      database=database, query=query).render_as_string(hide_password=False)
+
+
 class Config:
     # ── Temel ────────────────────────────────────────────────────────
     ENV = os.environ.get("DYS_ENV", "development").strip().lower()
@@ -148,6 +172,10 @@ class Config:
 
     SECRET_KEY = os.environ.get("DYS_SECRET_KEY")  # None ise app rastgele üretir
     DATABASE_URL = _build_database_url()
+
+    # ── CANIAS ERP (opsiyonel; müşteri/tedarikçi seçimini IASCUSTOMER'dan doldurur) ──
+    CANIAS_URL = _build_canias_url()
+    CANIAS_ENABLED = bool(CANIAS_URL)
 
     # ── Redis (opsiyonel; boş = bellek / iptal listesi kapalı) ────────
     REDIS_URL = os.environ.get("DYS_REDIS_URL", "").strip()
@@ -178,6 +206,11 @@ class Config:
     NUMARA_FORMATI = (os.environ.get("DYS_NUMARA_FORMATI", "eski") or "eski").strip().lower()
     # Dinamik form verilerinin otomatik yazılacağı klasör (Excel / Power BI bağlantısı için). Boş = kapalı.
     FORM_VERI_KLASORU = (os.environ.get("DYS_FORM_VERI_KLASORU") or "").strip() or None
+    # "YENİ YAPI" doküman klasörünün bu ortamdaki yeri. Kayıtlı yollar başka sürücü/sunucudaki
+    # ...\YENİ YAPI\... klasörünü gösteriyorsa bu köke eşlenir. Boş = eşleme yok.
+    YENI_YAPI_KLASORU = (os.environ.get("DYS_YENI_YAPI_KLASORU") or "").strip() or None
+    # Kullanıcılara gösterilen dizin kökü (ör. \\SUNUCU\Paylasim\YENİ YAPI). Boş = YENI_YAPI_KLASORU.
+    YENI_YAPI_GORUNEN_KLASOR = (os.environ.get("DYS_YENI_YAPI_GORUNEN_KLASOR") or "").strip() or None
     # Haritada eski (pasif) süreçleri de göster (geçiş dönemi)
     ESKI_SURECLERI_GOSTER = _bool("DYS_ESKI_SURECLERI_GOSTER", False)
 

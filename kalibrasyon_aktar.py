@@ -245,6 +245,9 @@ def sertifika_ekle(db, e, kaynak_yol, ad=None, yukleyen_id=None, aciklama=None, 
     s = KalibrasyonSertifika(ekipman_id=e.id, dosya_adi=os.path.basename(hedef), dosya_yolu=hedef, gecerli=True,
                              yukleyen_id=yukleyen_id, aciklama=aciklama, **alanlar)
     db.add(s)
+    db.flush()
+    import dosya_depo as _dd
+    s.depo_id = _dd.ekle(db, yol=hedef, ad=os.path.basename(hedef))   # 2026 — dosya veritabanında da saklanır
     return s
 
 

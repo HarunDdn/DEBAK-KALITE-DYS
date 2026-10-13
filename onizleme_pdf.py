@@ -13,6 +13,7 @@ import hashlib
 import logging
 import os
 import shutil
+import subprocess
 import tempfile
 import threading
 import uuid
@@ -20,9 +21,69 @@ import uuid
 logger = logging.getLogger("dys")
 
 OFFICE_UZANTILARI = {"doc", "docx", "xls", "xlsx", "xlsm", "rtf", "odt", "ods", "ppt", "pptx"}
-_KILIT = threading.Lock()          # Office COM aynı anda tek dönüştürme
+_KILIT = threading.Lock()          # Office COM / LibreOffice aynı anda tek dönüştürme
 _OZET = {}                         # (yol, mtime, boyut) → sha256
 _BASARISIZ = {}                    # sha256 → deneme sayısı (bozuk dosyada her açılışta Office açılmasın)
+_SOFFICE = None                    # soffice.exe yolu (bir kez bulunur); False = bulunamadı
+
+
+def _soffice_yolu():
+    """LibreOffice/soffice çalıştırılabilirini bulur (sunucuda Office olmadan PDF üretimi için)."""
+    global _SOFFICE
+    if _SOFFICE is not None:
+        return _SOFFICE or None
+    adaylar = []
+    ozel = (os.environ.get("DYS_SOFFICE") or os.environ.get("SOFFICE_PATH") or "").strip()
+    if ozel:
+        adaylar.append(ozel)
+    adaylar += [
+        shutil.which("soffice"),
+        shutil.which("soffice.com"),
+        r"C:\Program Files\LibreOffice\program\soffice.exe",
+        r"C:\Program Files (x86)\LibreOffice\program\soffice.exe",
+        "/usr/bin/soffice",
+        "/usr/bin/libreoffice",
+    ]
+    for p in adaylar:
+        if p and os.path.isfile(p):
+            _SOFFICE = p
+            return p
+    _SOFFICE = False
+    return None
+
+
+def _soffice_to_pdf(src, out_dir):
+    """LibreOffice headless ile PDF üretir; çıktı PDF yolu ya da None.
+
+    IIS servis hesabı altında yazılabilir bir kullanıcı profili (UserInstallation) şarttır;
+    aksi halde soffice sessizce çıkar. Her çağrı kendi geçici profilini kullanır.
+    """
+    exe = _soffice_yolu()
+    if not exe:
+        return None
+    pdf = os.path.join(out_dir, os.path.splitext(os.path.basename(src))[0] + ".pdf")
+    # Soğuk başlatma (kurulum / ilk açılış sonrası ilk çağrı) bazen boş döner; bir kez yeniden dene.
+    for deneme in (1, 2):
+        profil = tempfile.mkdtemp(prefix="dys_lo_profil_")
+        try:
+            cmd = [
+                exe, "--headless", "--nologo", "--nofirststartwizard", "--norestore",
+                f"-env:UserInstallation=file:///{profil.replace(os.sep, '/')}",
+                "--convert-to", "pdf", "--outdir", out_dir, os.path.abspath(src),
+            ]
+            try:
+                subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                               timeout=180, check=False)
+            except (subprocess.TimeoutExpired, OSError):
+                logger.exception("LibreOffice PDF dönüşümü başarısız / zaman aşımı: %s", src)
+                return None
+            if os.path.isfile(pdf) and os.path.getsize(pdf) > 0:
+                return pdf
+        finally:
+            shutil.rmtree(profil, ignore_errors=True)
+        if deneme == 1:
+            logger.warning("LibreOffice ilk denemede PDF üretmedi, yeniden deneniyor: %s", src)
+    return None
 
 
 def _klasorler():
@@ -151,6 +212,9 @@ def uret(yol, hedef_klasor=None):
                 pdf = _office_to_pdf(yol, gecici, {"rtf": "doc", "odt": "doc", "ods": "xls"}.get(ext, ext))
                 if not pdf and ext in ("doc", "docx", "rtf", "odt"):
                     pdf = _word_farkli_kaydet(yol, gecici)   # dışa aktarmada çöken belgeler için yedek yöntem
+            # Office (COM) yoksa / üretemediyse LibreOffice headless ile dene (sunucuda Office gerekmez)
+            if not pdf or not os.path.isfile(pdf) or os.path.getsize(pdf) == 0:
+                pdf = _soffice_to_pdf(yol, gecici)
         if not pdf or not os.path.isfile(pdf) or os.path.getsize(pdf) == 0:
             _BASARISIZ[o] = _BASARISIZ.get(o, 0) + 1
             return None
@@ -167,7 +231,9 @@ def uret(yol, hedef_klasor=None):
 
 
 def donusturucu_var():
-    """Sunucuda COM ile Office dönüştürmesi denenebilir mi (pywin32 kurulu)."""
+    """Sunucuda PDF dönüştürmesi denenebilir mi: Office COM (pywin32) ya da LibreOffice (soffice)."""
+    if _soffice_yolu():
+        return True
     try:
         import win32com.client  # noqa: F401
         return True

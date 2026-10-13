@@ -25,6 +25,7 @@ log_action = _h.log_action
 from config import Config  # noqa: E402
 from models import DogrulamaKarti, DogrulamaOturumu, DogrulamaOlcum, DogrulamaGorsel, User  # noqa: E402
 from helpers import resolve_file_path  # noqa: E402
+import dosya_depo as _dd  # noqa: E402
 
 TURLER = ("Mastar", "Cihaz", "Fikstür", "Terazi", "Termokupl")
 RESIM = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
@@ -102,7 +103,7 @@ def _etiket(d):
 
 
 def _aktif_liste(db):
-    kartlar = db.query(DogrulamaKarti).filter(DogrulamaKarti.aktif.isnot(False)).order_by(DogrulamaKarti.grup, DogrulamaKarti.no).all()
+    kartlar = db.query(DogrulamaKarti).filter((DogrulamaKarti.aktif.is_(None) | DogrulamaKarti.aktif.__eq__(True))).order_by(DogrulamaKarti.grup, DogrulamaKarti.no).all()
     oz = _ozet(db, kartlar)
     return kartlar, oz
 
@@ -293,7 +294,8 @@ def dogrulama_kart(kid):
                     tur = f.get("tur") if f.get("tur") in ("cihaz", "yontem") else "yontem"
                     ad = f"{tur}_{datetime.now():%Y%m%d%H%M%S}_{ad}"[:190]
                     dosya.save(os.path.join(kd, ad))
-                    db.add(DogrulamaGorsel(kart_id=k.id, tur=tur, dosya_adi=ad, dosya_yolu=os.path.join("dogrulama", str(k.id), ad))); db.commit()
+                    db.add(DogrulamaGorsel(kart_id=k.id, tur=tur, dosya_adi=ad, dosya_yolu=os.path.join("dogrulama", str(k.id), ad),
+                                           depo_id=_dd.ekle(db, yol=os.path.join(kd, ad), ad=ad))); db.commit()
                     flash("Görsel eklendi.", "success")
             elif a == "gorsel_sil":
                 g = db.get(DogrulamaGorsel, f.get("gid", type=int) or 0)
@@ -371,7 +373,7 @@ def dogrulama_gorsel(gid):
         g = db.get(DogrulamaGorsel, gid)
         if not g:
             abort(404)
-        yol = resolve_file_path(g.dosya_yolu, g.dosya_adi)
+        yol = _dd.yol_coz(db, g.depo_id, g.dosya_adi, resolve_file_path(g.dosya_yolu, g.dosya_adi))
         if not yol or not os.path.isfile(yol):
             abort(404)
         return send_file(yol)

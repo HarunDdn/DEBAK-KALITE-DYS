@@ -131,16 +131,20 @@
 <!-- Tabs -->
 {% include "_a4_onizleme.html" %}
 {% set icerik_once = doc.icerik_json and doc.dokuman_tipi in ('Prosedür', 'İş Akışı') %}
+{% set govde_once = doc.govde_html and not doc.icerik_json %}
+{% set once = icerik_once or govde_once %}
 {% set icerik_etiket = '🔀 İş Akışı' if doc.dokuman_tipi == 'İş Akışı' else ('📘 Prosedür' if doc.dokuman_tipi == 'Prosedür' else '📝 İçerik') %}
 <div class="tabs" data-tab-group="doc-detail">
     {% if icerik_once %}
     <button class="tab-item active" data-tab="tab-icerik">{{ icerik_etiket }}</button>
+    {% elif govde_once %}
+    <button class="tab-item active" data-tab="tab-govde">📖 İçerik (DYS'de oku)</button>
     {% endif %}
     {% if doc.dosya_adi %}
-    <button class="tab-item {{ '' if icerik_once else 'active' }}" data-tab="tab-preview">👁️ {{ 'Dosya önizleme' if icerik_once else 'Önizleme' }}</button>
+    <button class="tab-item {{ '' if once else 'active' }}" data-tab="tab-preview">👁️ {{ 'Dosya önizleme' if once else 'Önizleme' }}</button>
     <button class="tab-item" data-tab="tab-info">📋 Bilgiler</button>
     {% else %}
-    <button class="tab-item {{ '' if icerik_once else 'active' }}" data-tab="tab-info">📋 Bilgiler</button>
+    <button class="tab-item {{ '' if once else 'active' }}" data-tab="tab-info">📋 Bilgiler</button>
     {% endif %}
     {% if doc.icerik_json and not icerik_once %}
     <button class="tab-item" data-tab="tab-icerik">{{ icerik_etiket }}</button>
@@ -154,7 +158,7 @@
 <div data-tab-content="doc-detail">
     <!-- Tab: Önizleme (A4 sayfa görünümü) -->
     {% if doc.dosya_adi %}
-    <div id="tab-preview" class="tab-content {{ '' if icerik_once else 'active' }}">
+    <div id="tab-preview" class="tab-content {{ '' if once else 'active' }}">
         <div class="section-card">
             <div class="section-header">
                 <span class="section-title">👁️ A4 Önizleme — {{ doc.dosya_adi }}</span>
@@ -292,7 +296,7 @@
     {% endif %}
 
     <!-- Tab: Info -->
-    <div id="tab-info" class="tab-content {{ '' if (doc.dosya_adi or icerik_once) else 'active' }}">
+    <div id="tab-info" class="tab-content {{ '' if (doc.dosya_adi or once) else 'active' }}">
         <div class="section-card">
             <div class="section-header">
                 <span class="section-title">📋 Doküman Bilgileri</span>
@@ -383,6 +387,22 @@
             </div>
         </div>
     </div>
+
+    <!-- Tab: Dosyadan çıkarılan içerik (talimat / form / politika / görev tanımı …) -->
+    {% if govde_once %}
+    <div id="tab-govde" class="tab-content active">
+        <style>
+        .govde-sayfa{background:#fff;color:#111;max-width:900px;margin:0 auto;padding:28px 34px;border-radius:6px;box-shadow:0 1px 8px rgba(0,0,0,.25);font-size:14px;line-height:1.55;overflow-x:auto;}
+        .govde-sayfa h2,.govde-sayfa h3,.govde-sayfa h4,.govde-sayfa h5{margin:14px 0 6px;color:#111;}.govde-sayfa p{margin:0 0 8px;}.govde-sayfa p.lst{margin-left:18px;}
+        .govde-sayfa table.ic-t{border-collapse:collapse;margin:8px 0 12px;max-width:100%;}.govde-sayfa table.ic-t td{border:1px solid #bbb;padding:3px 7px;vertical-align:top;font-size:13px;}
+        .govde-sayfa table.ic-x td{white-space:pre-wrap;}.govde-sayfa .ic-sh{background:#eef2f7;padding:5px 9px;border-left:4px solid #2563eb;font-size:14px;}
+        .govde-sayfa .ic-not{color:#777;font-size:12px;font-style:italic;}.govde-sayfa .ic-ust{border-bottom:1px solid #ddd;margin-bottom:10px;padding-bottom:6px;}
+        </style>
+        <div class="section-card"><div class="section-header"><span class="section-title">📖 {{ doc.baslik }} — içerik</span>
+            <span class="text-muted" style="font-size:12px;">Dosyadan DYS'ye alınan okunur görünüm{% if doc.govde_not %} · {{ doc.govde_not }}{% endif %}. Biçim ve ekler için Dosya önizleme / indirme.</span></div>
+          <div class="section-body" style="background:var(--bg-secondary);padding:18px;"><div class="govde-sayfa">{{ doc.govde_html|safe }}</div></div></div>
+    </div>
+    {% endif %}
 
     <!-- Tab: İçerik (Şablon) -->
     {% if doc.icerik_json %}

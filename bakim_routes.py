@@ -110,7 +110,7 @@ def _ekipman_ozet(db, ekipmanlar):
 def bakim_form():
     db = get_db()
     try:
-        ekipmanlar = db.query(BakimEkipman).filter(BakimEkipman.aktif.isnot(False)).order_by(BakimEkipman.tur, BakimEkipman.kod).all()
+        ekipmanlar = db.query(BakimEkipman).filter((BakimEkipman.aktif.is_(None) | BakimEkipman.aktif.__eq__(True))).order_by(BakimEkipman.tur, BakimEkipman.kod).all()
         e = db.get(BakimEkipman, request.values.get("ekipman", type=int) or 0)
         sablonlar = uygun_sablonlar(e) if e else []
         s = sablon(request.values.get("form") or "")

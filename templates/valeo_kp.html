@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="tr"><head><meta charset="UTF-8"><title>Control Plan — {{ u.urun_adi }}</title>
+{% from "_valeo_antet.html" import stil, antet, araclar %}
+{{ stil('landscape') }}
+<style>.v-t td { white-space: pre-line; } .bolum td { background: #dbe4f3; font-weight: bold; } .kutucuk { display: inline-block; width: 3mm; height: 3mm; border: 1px solid #000; margin: 0 1mm -0.5mm 2mm; } .kutucuk.dolu { background: #000; }</style></head>
+<body>
+{{ araclar(u, 'Control Plan', url_for('valeo_kp', uid=u.id, excel=1), 'A4 yatay · antet her sayfada · Reaction Plan tanımları sonda') }}
+<div class="kagit">
+<table><thead><tr><td>
+{{ antet('CONTROL PLAN', ('Item: ' ~ (cp.ad or u.urun_adi) ~ ' — ' ~ (cp.ref or u.urun_kodu or '')), ('Control Plan No', cp.no or '—'), ('Date (Orj.)', cp.tarih_org or '—'), ('Date (Rev.)', (cp.revler[-1] if cp.revler else '—'))) }}
+</td></tr></thead><tbody><tr><td>
+<table class="v-h" style="margin:2mm 0;">
+  <tr><td class="k">Phase</td><td>Prototype <span class="kutucuk"></span> Pre-Launch <span class="kutucuk"></span> Production <span class="kutucuk dolu"></span></td><td class="k">Key Contact</td><td>{{ cp.iletisim or '' }}</td><td class="k">Core Team</td><td>{{ cp.ekip or '' }}</td></tr>
+  <tr><td class="k">Item Ref. No / Name</td><td>{{ cp.ref or u.urun_kodu or '' }} — {{ cp.ad or u.urun_adi }}</td><td class="k">Supplier</td><td>DEBAK DENİZLİ BAGALİT KALIP SAN. &amp; TİC. A.Ş. · Code: {{ cp.kod or '' }}</td><td class="k">Date (Rev.)</td><td>{{ (cp.revler or [])|join(' · ') }}</td></tr>
+  <tr><td class="k">Customer Engineering Approval / Date</td><td>&nbsp;</td><td class="k">Customer Quality Approval / Date</td><td>&nbsp;</td><td class="k">Supplier / Other Approval / Date</td><td>&nbsp;</td></tr></table>
+<table class="v-t">
+  <thead>
+    <tr><th rowspan="2" style="width:4%">Process No</th><th rowspan="2" style="width:9%">Process Description</th><th rowspan="2" style="width:9%">Machine, Device, Jig, Tools (Production Equipment, Material)</th><th colspan="3">Characteristics</th><th rowspan="2" style="width:2.5%">Class</th>
+      <th colspan="6">Methods</th><th rowspan="2" style="width:9%">Reaction Plan</th></tr>
+    <tr><th style="width:2.5%">No</th><th style="width:9%">Product</th><th style="width:8%">Process</th><th style="width:9%">Product / Process Specification / Tolerance</th><th style="width:9%">Evaluation / Measurement Technique</th>
+      <th style="width:5%">Sample Size</th><th style="width:6%">Frequency</th><th style="width:9%">Control Method</th><th style="width:9%">Records</th></tr></thead>
+  <tbody>
+  {% set s = namespace(son='') %}
+  {% for o in ops %}{% for r in o.kp %}
+    {% set anah = r.surec_no ~ '|' ~ r.surec_ad %}
+    {% if loop.first %}<tr class="bolum"><td colspan="14">{{ o.vj.cp_bolum[0].no if (o.vj.cp_bolum and o.vj.cp_bolum[0].no) else r.surec_no }} — {{ (o.vj.cp_bolum[0].ad if (o.vj.cp_bolum and o.vj.cp_bolum[0].ad) else o.ad)|upper }}</td></tr>{% endif %}
+    <tr><td class="c">{% if anah != s.son %}{{ r.surec_no }}{% endif %}</td><td>{% if anah != s.son %}{{ r.surec_ad }}{% endif %}</td><td>{{ r.ekipman }}</td><td class="c">{{ r.no }}</td><td>{{ r.urun }}</td><td>{{ r.proses }}</td><td class="c">{{ r.ozel }}</td>
+      <td>{{ r.sartname }}</td><td>{{ r.teknik }}</td><td>{{ r.numune }}</td><td>{{ r.siklik }}</td><td>{{ r.kontrol }}</td><td>{{ r.kayit }}</td><td>{{ r.reaksiyon }}</td></tr>
+    {% set s.son = anah %}
+  {% endfor %}{% endfor %}
+  </tbody></table>
+{% if cp.reaksiyon_tablo %}
+<div style="page-break-before:always;"></div>
+<table class="v-t" style="margin-top:3mm;"><thead><tr><th colspan="2" style="text-align:left;font-size:8.5pt;">Reaction Plan Definitions</th></tr><tr><th style="width:6%">No</th><th>Reaction</th></tr></thead><tbody>
+  {% for t in cp.reaksiyon_tablo %}<tr><td class="c"><b>{{ t.no }}</b></td><td>{{ t.metin }}</td></tr>{% endfor %}</tbody></table>
+{% endif %}
+<div class="altlik"><span>DEBAK Denizli Bagalit Kalıp San. ve Tic. A.Ş. · {{ u.musteri }}</span><span>{{ u.urun_adi }} · Çıktı: {{ bugun.strftime('%d.%m.%Y') }} (DYS)</span></div>
+</td></tr></tbody></table>
+</div></body></html>

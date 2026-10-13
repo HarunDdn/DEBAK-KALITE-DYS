@@ -31,6 +31,7 @@ log_action = _h.log_action
 from models import (TeknikResim, TeknikResimRevizyon, TR_DAGITIM, TR_ETKILER, TR_EK_TURLERI, User,  # noqa: E402
                     PPAPSubmission, MusteriSikayeti)
 from helpers import resolve_file_path  # noqa: E402
+import dosya_depo as _dd  # noqa: E402
 from config import Config  # noqa: E402
 
 DEGERLENDIRME_GUN = 14
@@ -152,6 +153,7 @@ def _revizyon_ekle(db, resim, form, files, arsiv=False):
             db.rollback()
             return None, hata
         r.dosya_adi, r.dosya_yolu = ad, yol
+        r.depo_id = _dd.ekle(db, yol=yol, ad=ad)
     if not arsiv:
         for eski in _revler(db, resim.id):
             if eski.id != r.id and eski.durum == "Geçerli":
@@ -319,6 +321,7 @@ def teknik_resim_detay(rid):
                         flash(hata, "error")
                         return redirect(git + f"#rev-{r.id}")
                     r.dosya_adi, r.dosya_yolu = ad, yol
+                    r.depo_id = _dd.ekle(db, yol=yol, ad=ad)
                     db.commit(); log_action(db, "Güncelleme", detay=f"Teknik resim dosyası: {t.resim_no} rev {r.revizyon} — {ad}")
                     flash("Dosya yüklendi.", "success")
                 elif a == "ek_ekle":
@@ -331,7 +334,7 @@ def teknik_resim_detay(rid):
                         ad, yol, hata = _dosya_kaydet(fl, t.id, f"{r.id}_ek")
                         if hata:
                             flash(hata, "error"); continue
-                        ekler.append({"ad": ad, "yol": yol, "tur": tur}); n += 1
+                        ekler.append({"ad": ad, "yol": yol, "tur": tur, "depo_id": _dd.ekle(db, yol=yol, ad=ad)}); n += 1
                     r.ek_dosyalar_json = json.dumps(ekler, ensure_ascii=False) if ekler else None
                     db.commit()
                     if n:
@@ -392,7 +395,7 @@ def teknik_resim_dosya(rev_id):
         r = db.get(TeknikResimRevizyon, rev_id)
         if not r or not r.dosya_yolu:
             abort(404)
-        p = resolve_file_path(r.dosya_yolu, r.dosya_adi)
+        p = _dd.yol_coz(db, r.depo_id, r.dosya_adi, resolve_file_path(r.dosya_yolu, r.dosya_adi))
         if not p or not os.path.isfile(p):
             flash("Resim dosyası bulunamadı.", "error")
             return redirect(url_for("teknik_resim_detay", rid=r.resim_id))
@@ -412,7 +415,7 @@ def teknik_resim_ek(rev_id, i):
         if not 0 <= i < len(ekler):
             abort(404)
         e = ekler[i]
-        p = resolve_file_path(e.get("yol"), e.get("ad"))
+        p = _dd.yol_coz(db, e.get("depo_id"), e.get("ad"), resolve_file_path(e.get("yol"), e.get("ad")))
         if not p or not os.path.isfile(p):
             flash("Ek dosya bulunamadı.", "error")
             return redirect(url_for("teknik_resim_detay", rid=r.resim_id))

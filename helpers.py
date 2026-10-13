@@ -73,6 +73,19 @@ def file_sha256(path):
     return h.hexdigest()
 
 
+def yeni_yapi_esle(yol, kok):
+    """``...\\YENİ YAPI\\<göreli>`` yolunu ``kok\\<göreli>`` yapar (kök klasör adı işaret alınır). Eşleşmezse None."""
+    if not yol or not kok:
+        return None
+    kok = kok.replace("/", "\\").rstrip("\\")
+    p = yol.replace("/", "\\").rstrip("\\") + "\\"
+    marker = "\\" + kok.rsplit("\\", 1)[-1] + "\\"
+    idx = p.find(marker)
+    if idx < 0:
+        return None
+    return (kok + "\\" + p[idx + len(marker):]).rstrip("\\")
+
+
 def resolve_file_path(dosya_yolu, dosya_adi):
     """Mutlak/göreli dosya yolunu UPLOAD_FOLDER'a göre çözer.
 
@@ -109,6 +122,11 @@ def resolve_file_path(dosya_yolu, dosya_adi):
         p = os.path.normpath(dosya_yolu)
         if _isfile(p):
             return p
+
+        # ...\YENİ YAPI\... yolu başka sürücü/sunucudan kaldıysa bu ortamdaki köke eşle
+        cand = yeni_yapi_esle(p, Config.YENI_YAPI_KLASORU)
+        if cand and _isfile(cand):
+            return cand
 
         # uploads/documents/... göreli parçayı çıkar
         lowered = p.replace("/", "\\").lower()
@@ -147,11 +165,16 @@ def resolve_file_path(dosya_yolu, dosya_adi):
 
 
 def document_dir_path(dosya_yolu, dosya_adi=None):
-    """Dokümanın bulunduğu klasör adresi (UNC/yerel). Disk erişimi yok."""
+    """Dokümanın bulunduğu klasör adresi (UNC/yerel). Disk erişimi yok.
+
+    Kayıtlı yol ...\\YENİ YAPI\\... ise kullanıcıya gösterilen köke eşlenir
+    (DYS_YENI_YAPI_GORUNEN_KLASOR, yoksa DYS_YENI_YAPI_KLASORU).
+    """
     raw = (dosya_yolu or "").strip()
     if not raw:
         return ""
     p = raw.replace("/", "\\").rstrip("\\")
+    p = yeni_yapi_esle(p, Config.YENI_YAPI_GORUNEN_KLASOR or Config.YENI_YAPI_KLASORU) or p
     if p.upper().startswith("\\\\?\\UNC\\"):
         p = "\\\\" + p[8:]
     name = p.rsplit("\\", 1)[-1]

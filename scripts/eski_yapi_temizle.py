@@ -51,8 +51,8 @@ def bagli_sil(db, tablo, pk_sutun, idler, derin=0):
 def main():
     db = SessionLocal()
     try:
-        yeni = {p.kod: p for p in db.query(Process).filter(Process.aktif.is_(True)).all()}
-        eski = [p for p in db.query(Process).filter(Process.aktif.is_(False)).all()]
+        yeni = {p.kod: p for p in db.query(Process).filter(Process.aktif.__eq__(True)).all()}
+        eski = [p for p in db.query(Process).filter(Process.aktif.__eq__(False)).all()]
         print(f"aktif süreç: {len(yeni)} · eski (pasif) süreç: {len(eski)}")
         for p in eski:
             hedef = yeni.get(TASIMA.get(p.kod, ""))

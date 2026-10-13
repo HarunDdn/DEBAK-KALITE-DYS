@@ -71,7 +71,7 @@ def _kullanici_id(db, ad):
     if not ad:
         return None
     a = ad.strip().lower()
-    for u in db.query(User).filter(User.aktif.is_(True)).all():
+    for u in db.query(User).filter(User.aktif.__eq__(True)).all():
         if u.ad_soyad and u.ad_soyad.strip().lower() == a:
             return u.id
     return None

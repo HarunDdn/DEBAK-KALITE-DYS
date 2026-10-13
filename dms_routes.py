@@ -7,6 +7,7 @@ DYS — Doküman yönetim etkinliği (2026): tek iş kutusu ve atıf bütünlü�
   /reports/atiflar.csv        aynı rapor (Excel'de açılır CSV)
 Şema değişikliği yoktur; mevcut tablolardan okunur. app.py sonunda import edilir.
 """
+from sqlalchemy import case as _sa_case
 import csv
 import io
 import json
@@ -56,7 +57,7 @@ def is_kutusu(db, uid, rol):
                                   f"{a.onay_adimi} adımı · Rev. {a.document.revizyon_no}", a.tarih.date() if a.tarih else None)
                            for a in q.order_by(DocumentApproval.tarih).limit(200).all() if a.document]})
 
-    dd = (db.query(DocumentDistribution).filter(DocumentDistribution.kullanici_id == uid, DocumentDistribution.okundu_mu.is_(False))
+    dd = (db.query(DocumentDistribution).filter(DocumentDistribution.kullanici_id == uid, DocumentDistribution.okundu_mu.__eq__(False))
           .order_by(DocumentDistribution.dagitim_tarihi).limit(200).all())
     b.append({"anahtar": "oku", "baslik": "Okuyup anlamam gereken dokümanlar", "ikon": "📨", "tumu": "/distributions",
               "aciklama": "Size dağıtılan ya da yeni revizyonu yayınlanan dokümanlar. Okuduktan sonra 'Okudum, anladım' ile onaylayın (okuma kaydı).",
@@ -100,7 +101,7 @@ def is_kutusu(db, uid, rol):
 
     from models import ToplantiMaddesi
     tm = (db.query(ToplantiMaddesi).filter(ToplantiMaddesi.sorumlu_id == uid, ToplantiMaddesi.durum == "Açık")
-          .order_by(ToplantiMaddesi.termin.is_(None), ToplantiMaddesi.termin).limit(200).all())
+          .order_by(_sa_case((ToplantiMaddesi.termin.is_(None), 1), else_=0), ToplantiMaddesi.termin).limit(200).all())
     b.append({"anahtar": "toplanti", "baslik": "Toplantı kararlarından aksiyonlarım", "ikon": "🗓️", "tumu": "/toplantilar/aksiyonlar?benim=1",
               "aciklama": "Toplantı tutanaklarında sorumlu olarak atandığınız açık kararlar / aksiyonlar.",
               "satirlar": [_satir(m.karar or m.konu or m.gorusme or "Toplantı aksiyonu", f"/toplantilar/{m.tutanak_id}",
@@ -110,7 +111,7 @@ def is_kutusu(db, uid, rol):
     from models import TedarikciUygunsuzluk, MusteriSikayeti
     kv = []
     for M, tur, ad in ((MusteriSikayeti, "musteri", "Müşteri şikayeti"), (TedarikciUygunsuzluk, "tedarikci", "Tedarikçi uygunsuzluğu")):
-        for k in db.query(M).filter(M.sorumlu_id == uid, ~M.durum.in_(("Kapatıldı", "İptal"))).order_by(M.termin_8d.is_(None), M.termin_8d).limit(200).all():
+        for k in db.query(M).filter(M.sorumlu_id == uid, ~M.durum.in_(("Kapatıldı", "İptal"))).order_by(_sa_case((M.termin_8d.is_(None), 1), else_=0), M.termin_8d).limit(200).all():
             kv.append(_satir(f"{k.no} — {getattr(k, 'musteri', None) or getattr(k, 'tedarikci_ad', None) or ''} · {k.urun_adi or k.urun_no or ''}", f"/kalite/{tur}/{k.id}",
                              f"{ad} · {k.durum}", k.termin_8d, gecikme=bool(k.termin_8d and k.termin_8d < bugun)))
     b.append({"anahtar": "kalite", "baslik": "Sorumlu olduğum kalite vakaları", "ikon": "📣", "tumu": "/kalite/musteri",

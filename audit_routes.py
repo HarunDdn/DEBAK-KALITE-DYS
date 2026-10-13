@@ -5,6 +5,7 @@ app_runtime üzerinden app'e route kaydı.
 CRUD (/audits/new ve detay) app.py'de kalır.
 """
 
+from sqlalchemy import case as _sa_case
 from datetime import date, timedelta
 
 from flask import render_template, request, session
@@ -142,7 +143,7 @@ def audit_list():
             query = query.filter(InternalAudit.durum == durum)
         if tip:
             query = query.filter(InternalAudit.denetim_tipi == tip)
-        kayitlar = query.order_by(InternalAudit.planlanan_tarih.desc().nullslast()).all()
+        kayitlar = query.order_by(_sa_case((InternalAudit.planlanan_tarih.is_(None), 1), else_=0), InternalAudit.planlanan_tarih.desc()).all()
         return render_template(
             "audit_list.html",
             kayitlar=kayitlar,

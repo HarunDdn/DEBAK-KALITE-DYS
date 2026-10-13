@@ -64,7 +64,17 @@
     {% elif tip == 'kullanici' %}<select class="form-control" name="{{ key }}"><option value="">—</option>{% for u in kullanicilar %}<option value="{{ u.id }}" {{ 'selected' if u.id == v }}>{{ u.ad_soyad }}</option>{% endfor %}</select>
     {% elif tip == 'tedarikci' %}<select class="form-control" name="tedarikci_id" onchange="document.getElementById('ted-ad').style.display=this.value?'none':''"><option value="">— listede yok, adı yazın —</option>{% for s in tedarikciler %}<option value="{{ s.id }}" {{ 'selected' if s.id == v }}>{{ s.ad }}{% if s.kod %} ({{ s.kod }}){% endif %}</option>{% endfor %}</select>
       <input id="ted-ad" class="form-control" name="tedarikci_ad" value="{{ k.tedarikci_ad or '' }}" placeholder="Tedarikçi adı" style="{{ 'display:none;' if v }}">
-    {% elif tip == 'musteri' %}<input class="form-control" name="{{ key }}" value="{{ v or '' }}" list="musteri-listesi" required><datalist id="musteri-listesi">{% for m in musteriler %}<option value="{{ m }}">{% endfor %}</datalist>
+      {% if canias_aktif %}<div class="canias-sec" style="position:relative;margin-top:4px;"><input class="form-control" autocomplete="off" data-canias="1" data-hedef="ted-ad" data-select-reset="tedarikci_id" placeholder="CANIAS'tan ara: firma adı / kod / şehir…"><div class="canias-liste" style="display:none;position:absolute;z-index:50;left:0;right:0;max-height:260px;overflow:auto;background:var(--panel,#1f2430);border:1px solid var(--border,#394150);border-radius:6px;box-shadow:0 6px 18px rgba(0,0,0,.35);"></div></div>{% endif %}
+    {% elif tip == 'musteri' %}
+      {% if canias_aktif %}
+      <div class="canias-sec" style="position:relative;">
+        <input class="form-control" name="{{ key }}" value="{{ v or '' }}" autocomplete="off"
+               data-canias="1" placeholder="CANIAS'tan ara: firma adı / kod / şehir…" required>
+        <div class="canias-liste" style="display:none;position:absolute;z-index:50;left:0;right:0;max-height:260px;overflow:auto;background:var(--panel,#1f2430);border:1px solid var(--border,#394150);border-radius:6px;box-shadow:0 6px 18px rgba(0,0,0,.35);"></div>
+      </div>
+      {% else %}
+      <input class="form-control" name="{{ key }}" value="{{ v or '' }}" list="musteri-listesi" required><datalist id="musteri-listesi">{% for m in musteriler %}<option value="{{ m }}">{% endfor %}</datalist>
+      {% endif %}
     {% else %}<input class="form-control" name="{{ key }}" value="{{ v or '' }}">{% endif %}
     </label>
     {% endif %}
@@ -175,5 +185,50 @@ document.getElementById('kk-canvas').addEventListener('pointerup',()=>{if(kkBas)
 function kkGeri(){kkIz.pop();kkCizYenile();}
 function kkKaydet(){kkC.toBlob(b=>kkGonder([new File([b],'isaretli.png',{type:'image/png'})],'Hatalı (NOK)',('İşaretli — '+kkAcik).trim().replace(/—$/,'').trim()),'image/png');}
 {% endif %}
+
+// ── CANIAS firma seçici (müşteri / tedarikçi) ──
+(function(){
+  const kutu = document.querySelector('input[data-canias="1"]');
+  if(!kutu) return;
+  const liste = kutu.parentElement.querySelector('.canias-liste');
+  // Seçilen ad buraya yazılır (yoksa kutunun kendisi). data-select-reset: seçince sıfırlanacak <select>.
+  const hedef = document.getElementById(kutu.getAttribute('data-hedef')) || kutu;
+  const sifirlanacak = kutu.getAttribute('data-select-reset');
+  let zamanlayici = null, sonIstek = 0;
+  function kapat(){ liste.style.display='none'; liste.innerHTML=''; }
+  function kacis(s){ return (s||'').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+  function sec(ad){
+    hedef.value = ad;
+    if(hedef !== kutu){ hedef.style.display=''; kutu.value=''; }   // tedarikçi: serbest-metin alanını göster
+    if(sifirlanacak){ const sel=document.querySelector('[name="'+sifirlanacak+'"]'); if(sel) sel.value=''; }
+    kapat();
+  }
+  function goster(firmalar){
+    if(!firmalar.length){ liste.innerHTML='<div style="padding:8px 10px;opacity:.7;">Eşleşen firma yok</div>'; liste.style.display='block'; return; }
+    liste.innerHTML = firmalar.map(f=>{
+      const alt=[f.kod, f.sehir, f.onay, f.seviye].filter(Boolean).join(' · ');
+      return '<div class="canias-oge" data-ad="'+kacis(f.tam_ad||f.ad)+'" style="padding:7px 10px;cursor:pointer;border-bottom:1px solid var(--border,#394150);">'
+        +'<div style="font-weight:600;">'+kacis(f.ad)+(f.ad2?' <span style="opacity:.7;font-weight:400;">'+kacis(f.ad2)+'</span>':'')+'</div>'
+        +'<div style="font-size:12px;opacity:.7;">'+kacis(alt)+'</div></div>';
+    }).join('');
+    liste.querySelectorAll('.canias-oge').forEach(o=>{
+      o.addEventListener('mousedown', e=>{ e.preventDefault(); sec(o.getAttribute('data-ad')); });
+      o.addEventListener('mouseenter', ()=>{ o.style.background='var(--hover,#2a3140)'; });
+      o.addEventListener('mouseleave', ()=>{ o.style.background=''; });
+    });
+    liste.style.display='block';
+  }
+  function ara(){
+    const q = kutu.value.trim();
+    const istek = ++sonIstek;
+    fetch('{{ url_for("canias_firmalar") }}?q='+encodeURIComponent(q))
+      .then(r=>r.json())
+      .then(d=>{ if(istek===sonIstek) goster(d.firmalar||[]); })
+      .catch(()=>{ if(istek===sonIstek) kapat(); });
+  }
+  kutu.addEventListener('input', ()=>{ clearTimeout(zamanlayici); zamanlayici=setTimeout(ara, 250); });
+  kutu.addEventListener('focus', ara);
+  document.addEventListener('click', e=>{ if(!kutu.parentElement.contains(e.target)) kapat(); });
+})();
 </script>
 {% endblock %}

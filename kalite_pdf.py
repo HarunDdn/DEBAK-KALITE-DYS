@@ -130,7 +130,7 @@ def _goruntu(yol, gen, yuk):
 
 
 def _gorsel_bolumu(gorseller, no, st):
-    g = [x for x in gorseller if x.pdfte is not False and os.path.isfile(x.dosya_yolu)]
+    g = [x for x in gorseller if x.pdfte is not False and os.path.isfile(getattr(x, "_yerel", None) or x.dosya_yolu)]
     if not g:
         return []
     out = [Table([[Paragraph(f"{no}. Görseller  <font size='8'>/ Images</font>", st["bolum"])]], colWidths=[GEN],
@@ -141,7 +141,7 @@ def _gorsel_bolumu(gorseller, no, st):
         alt = Paragraph(f"<font color='{renk}'><b>{i}. {escape(x.etiket or '')}</b> / <i>{escape(dict(KS.ETIKET).get(x.etiket or '', ''))}</i></font>"
                         + (f"<br/>{escape(x.aciklama)}" if x.aciklama else ""), st["td"])
         try:
-            hucreler.append([_goruntu(x.dosya_yolu, 86 * mm, 64 * mm), alt])
+            hucreler.append([_goruntu(getattr(x, "_yerel", None) or x.dosya_yolu, 86 * mm, 64 * mm), alt])
         except Exception:  # noqa: BLE001 — okunamayan görsel rapora girmez
             continue
     satir = []

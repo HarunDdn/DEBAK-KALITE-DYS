@@ -86,7 +86,7 @@ def kullanici_bul(db, ad):
     t = _norm(ad)
     if not t:
         return None
-    adaylar = db.query(User).filter(User.aktif.is_(True)).all()
+    adaylar = db.query(User).filter(User.aktif.__eq__(True)).all()
     for u in adaylar:
         if _norm(u.ad_soyad) == t:
             return u
@@ -344,7 +344,7 @@ def ekip_belirle(db, item, yil, bugun=None):
     """Plan kalemi için ekip + uyarılar. Plandaki uygun denetçiler korunur, uygun olmayanın yerine en az yüklü uygun denetçi."""
     from models import DenetciYetkinlik
     surec_kod = item.surec.kod if item.surec else None
-    tum = db.query(DenetciYetkinlik).filter(DenetciYetkinlik.aktif.is_(True)).all()
+    tum = db.query(DenetciYetkinlik).filter(DenetciYetkinlik.aktif.__eq__(True)).all()
     by_id = {d.id: d for d in tum}
     plan_ekip = ekip_oku(item)
     ekip, uyarilar = [], []
@@ -594,7 +594,7 @@ def hatirlatmalar(db, bugun=None, user_id=None):
         for p in db.query(Process).filter(Process.ust_surec_id.is_(None)).all():
             if p.aktif_mi and re.fullmatch(r"[DMY]\d\d", p.kod or "") and p.kod not in planli:
                 ekle("uyari", "Planda olmayan süreç", f"{p.kod} {p.ad} — {prog.yil} programında süreç denetimi yok", "/audits/program", (), "Süreç")
-    for d in db.query(DenetciYetkinlik).filter(DenetciYetkinlik.aktif.is_(True)).all():
+    for d in db.query(DenetciYetkinlik).filter(DenetciYetkinlik.aktif.__eq__(True)).all():
         if not d.user_id:
             ekle("bilgi", "Denetçi eşleşmedi", f"{d.ad_soyad}: DYS kullanıcısı seçilmemiş (otomatik atamada kullanılamaz)", f"/audits/auditors/{d.id}")
         if d.gecerlilik_tarihi and d.gecerlilik_tarihi < bugun:

@@ -140,7 +140,8 @@ def calibration_cert_download(cid):
         c = db.get(KalibrasyonSertifika, cid)
         if not c:
             abort(404)
-        yol = resolve_file_path(c.dosya_yolu, c.dosya_adi)
+        import dosya_depo as _dd
+        yol = _dd.yol_coz(db, c.depo_id, c.dosya_adi, resolve_file_path(c.dosya_yolu, c.dosya_adi))
         if not yol or not os.path.isfile(yol):
             flash("Sertifika dosyası bulunamadı.", "error")
             return redirect(url_for("calibration_detail", eid=c.ekipman_id))

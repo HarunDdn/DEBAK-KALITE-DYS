@@ -15,6 +15,7 @@ import os
 from datetime import date, datetime
 
 from flask import render_template, request, redirect, url_for, flash, abort, session, send_file
+import dosya_depo as _dd
 from werkzeug.utils import secure_filename
 
 from app_runtime import host as _host
@@ -181,6 +182,20 @@ def kalite_liste(tur):
         db.close()
 
 
+@app.route("/api/canias/firmalar")
+@login_required
+def canias_firmalar():
+    """CANIAS IASCUSTOMER onaylı firma araması (JSON) — müşteri/tedarikçi seçicisi için."""
+    import canias
+    from flask import jsonify
+    q = (request.args.get("q") or "").strip()
+    try:
+        limit = min(max(int(request.args.get("limit", 30)), 1), 100)
+    except (TypeError, ValueError):
+        limit = 30
+    return jsonify({"aktif": canias.aktif(), "firmalar": canias.ara(q, limit)})
+
+
 def _musteriler(db):
     from models import PPAPSubmission, CustomerSpecificRequirement
     s = set()
@@ -235,9 +250,10 @@ def kalite_kayit(tur, kid=None):
                 k.termin_d3 = date.today() + timedelta(days=1); k.termin_8d = date.today() + timedelta(days=10)
         return render_template("kalite_kayit.html", tur=tur, tk=tk, ad=ad, ad_en=ad_en, k=k, spec=KS.SPEC[tk], deger=_deger,
                                gorseller=_gorseller(db, tk, k.id) if k.id else [], etiketler=KS.ETIKET, gecikmis=gecikmis(k, tk) if k.id else False,
-                               kullanicilar=db.query(User).filter(User.aktif.is_(True)).order_by(User.ad_soyad).all(),
+                               kullanicilar=db.query(User).filter(User.aktif.__eq__(True)).order_by(User.ad_soyad).all(),
                                tedarikciler=db.query(Supplier).order_by(Supplier.ad).all() if tk == "TU" else [],
-                               musteriler=_musteriler(db) if tk == "MS" else [], yazabilir=_yazabilir(), yonetici=_yonetici())
+                               musteriler=_musteriler(db) if tk == "MS" else [], yazabilir=_yazabilir(), yonetici=_yonetici(),
+                               canias_aktif=__import__("canias").aktif())
     finally:
         db.close()
 
@@ -269,7 +285,7 @@ def kalite_gorsel_yukle(tur, kid):
             except Exception:  # noqa: BLE001
                 os.remove(yol); flash(f"{f.filename}: görsel dosyası okunamadı.", "error"); continue
             sira += 1
-            db.add(KaliteGorsel(tur=tk, kayit_id=kid, dosya_adi=ad_, dosya_yolu=yol, sira=sira, pdfte=True,
+            db.add(KaliteGorsel(tur=tk, kayit_id=kid, dosya_adi=ad_, dosya_yolu=yol, depo_id=_dd.ekle(db, yol=yol, ad=ad_), sira=sira, pdfte=True,
                                 etiket=request.form.get("etiket") or "Hatalı (NOK)", aciklama=(request.form.get("aciklama") or "").strip()[:300] or None,
                                 yukleyen_id=session.get("user_id")))
             n += 1
@@ -296,9 +312,10 @@ def kalite_gorsel(gid):
     db = get_db()
     try:
         g, k, tur = _gorsel_ve_kayit(db, gid)
-        if not os.path.isfile(g.dosya_yolu):
+        p = _dd.yol_coz(db, g.depo_id, g.dosya_adi, g.dosya_yolu)
+        if not p:
             abort(404)
-        return send_file(g.dosya_yolu, download_name=g.dosya_adi, max_age=3600)
+        return send_file(p, download_name=g.dosya_adi, max_age=3600)
     finally:
         db.close()
 
@@ -337,7 +354,10 @@ def kalite_pdf(tur, kid):
     try:
         k = db.get(M, kid) or abort(404)
         import kalite_pdf as KP
-        buf = KP.rapor(k, tk, _gorseller(db, tk, kid), hazirlayan=k.sorumlu.ad_soyad if k.sorumlu else (session.get("ad_soyad") or ""))
+        _gl = _gorseller(db, tk, kid)
+        for _g in _gl:                                        # dosya yoksa depodan yerel kopya (kalıcı yazılmaz)
+            _g._yerel = _dd.yol_coz(db, _g.depo_id, _g.dosya_adi, _g.dosya_yolu)
+        buf = KP.rapor(k, tk, _gl, hazirlayan=k.sorumlu.ad_soyad if k.sorumlu else (session.get("ad_soyad") or ""))
         log_action(db, "Çıktı", detay=f"{ad}: {k.no} A4 PDF raporu")
         kime = (k.tedarikci_ad if tk == "TU" else k.musteri) or ""
         dosya = secure_filename(f"{k.no} {kime}".strip()) or k.no

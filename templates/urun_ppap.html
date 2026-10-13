@@ -17,7 +17,11 @@
     <a href="{{ url_for('urun_proses_agac', uid=u.id) }}" class="btn btn-outline">🌳 Ürün ağacı / operasyonlar</a>
     <a href="{{ url_for('urun_proses_olcum', uid=u.id) }}" class="btn btn-outline">📏 Ölçü gir</a>
     <a href="{{ url_for('urun_proses_olcumler', uid=u.id) }}" class="btn btn-outline">📈 Ölçüler</a>
-    <button class="btn btn-outline" onclick="window.print()">🖨️ Yazdır</button></div>
+    <button class="btn btn-outline" onclick="window.print()">🖨️ Yazdır</button>
+    {% if not rev %}<span style="display:inline-flex;gap:4px;align-items:center;border:1px solid var(--border);border-radius:8px;padding:2px 8px;font-size:12px;">Valeo formatı (antetli):
+      <a class="btn btn-primary" style="padding:2px 9px;font-size:12px;" href="{{ url_for('valeo_akis', uid=u.id) }}" target="_blank">🔀 Flow Chart</a>
+      <a class="btn btn-primary" style="padding:2px 9px;font-size:12px;" href="{{ url_for('valeo_fmea', uid=u.id) }}" target="_blank">⚠️ PFMEA</a>
+      <a class="btn btn-primary" style="padding:2px 9px;font-size:12px;" href="{{ url_for('valeo_kp', uid=u.id) }}" target="_blank">📋 Control Plan</a></span>{% endif %}</div>
 </div>
 {% if rev %}<div class="section-card mb-16" style="border-left:4px solid #92600a;"><div class="section-body">Bu, <b>Rev {{ rev.rev_no }}</b> anlık görüntüsüdür ({{ kim.get(rev.olusturan_id, '') }}). Neden: {{ rev.neden or '—' }}</div></div>{% endif %}
 {% if degisti %}<div class="section-card mb-16 no-print" style="border-left:4px solid #b91c1c;"><div class="section-body"><b>Son revizyondan sonra değişiklik var.</b> {% if fark %}({{ fark|join(' · ') }}){% else %}(içerik değişti){% endif %} Yeni revizyon oluşturmanız gerekir.</div></div>{% endif %}

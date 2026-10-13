@@ -215,7 +215,7 @@ def form_detail(tanim_id):
             return redirect(url_for("form_detail", tanim_id=t.id))
         uid, rol = _uid_rol()
         kayitlar = FE.gorunur(db.query(FormKayit).filter(FormKayit.tanim_id == t.id).order_by(FormKayit.olusturma_tarihi.desc()).limit(500).all(), uid, rol)[:200]
-        erisim_kullanicilar = db.query(User).filter(User.aktif.is_(True)).order_by(User.ad_soyad).all() if rol == "Admin" else []
+        erisim_kullanicilar = db.query(User).filter(User.aktif.__eq__(True)).order_by(User.ad_soyad).all() if rol == "Admin" else []
         return render_template("form_detail.html", t=t, alanlar=_alanlar(t), kayitlar=kayitlar,
                                erisim_kullanicilar=erisim_kullanicilar, yetkililer=FE.yetkililer(t),
                                yetkili_adlari=[u.ad_soyad for u in db.query(User).filter(User.id.in_(FE.yetkililer(t))).all()] if t.kisitli else [],

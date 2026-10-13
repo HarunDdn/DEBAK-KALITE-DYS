@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="tr"><head><meta charset="UTF-8"><title>PFMEA — {{ u.urun_adi }}</title>
+{% from "_valeo_antet.html" import stil, antet, araclar %}
+{{ stil('landscape') }}
+<style>.v-t td.s, .v-t td.o, .v-t td.d, .v-t td.r { text-align: center; } .v-t td { white-space: pre-line; }</style></head>
+<body>
+{{ araclar(u, 'Process FMEA', url_for('valeo_fmea', uid=u.id, excel=1), 'A4 yatay · ' ~ standartlar[std] ~ ' · AP yalnız matristen, RPN bilgidir') }}
+{% if not ops %}<div class="kagit" style="text-align:center;padding:30px;">Bu ürün için FMEA verisi yok.</div>{% endif %}
+{% for o in ops %}
+{% set fb = o.vj.fmea_baslik or {} %}
+<div class="kagit {{ 'sayfa-sonu' if not loop.last }}">
+<table><thead><tr><td>
+{{ antet('PROCESS FMEA', ('Process: ' ~ (fb.surec or o.ad)), ('FMEA No', fb.no or fm.no or '—'), ('FMEA Tarihi (Org. / Rev.)', ((fb.tarih_org or fm.tarih_org or '—') ~ ' / ' ~ (fb.tarih_rev or fm.tarih_rev or '—'))), ('Standart', standartlar[std])) }}
+<table class="v-h" style="margin:2mm 0;">
+  <tr><td class="k">Item Name / Ref.</td><td>{{ fb.urun or fm.urun or u.urun_adi }}</td><td class="k">Department</td><td>{{ fb.bolum or 'Quality' }}</td><td class="k">Prepared by</td><td>{{ fb.hazirlayan or fm.hazirlayan or '' }}</td><td class="k">Key Date</td><td>{{ fb.key_date or '' }}</td></tr>
+  <tr><td class="k">Core Team</td><td colspan="7">{{ fb.ekip or fm.ekip or '' }}</td></tr></table>
+</td></tr></thead><tbody><tr><td>
+<table class="v-t" style="table-layout:fixed;">
+  <colgroup><col style="width:7%"><col style="width:8%"><col style="width:8%"><col style="width:8%"><col style="width:2.7%"><col style="width:2.3%"><col style="width:8%"><col style="width:8%"><col style="width:2.7%"><col style="width:8%"><col style="width:2.7%"><col style="width:2.7%"><col style="width:2.7%"><col style="width:7%"><col style="width:5%"><col style="width:5%"><col style="width:2.3%"><col style="width:2.3%"><col style="width:2.3%"><col style="width:2.7%"></colgroup>
+  <thead>
+    <tr><th rowspan="2">Process Function</th><th rowspan="2">Requirement</th><th rowspan="2">Potential Failure Mode</th><th rowspan="2">Potential Effects of Failure</th>
+      <th rowspan="2">Sev.</th><th rowspan="2">Class</th><th rowspan="2">Potential Causes of Failure</th>
+      <th colspan="4">Current Process Controls</th><th rowspan="2">RPN</th><th rowspan="2">AP</th><th rowspan="2">Recommended Actions</th><th rowspan="2">Responsib. / Target Date</th>
+      <th colspan="5">Action Results</th></tr>
+    <tr><th>Prevention</th><th>Occ.</th><th>Detection</th><th>Det.</th><th>Actions Taken</th><th>Sev.</th><th>Occ.</th><th>Det.</th><th>RPN</th></tr></thead>
+  <tbody>
+  {% set on = namespace(fn='', mode='') %}
+  {% for r in o.fmea %}
+    <tr>
+      <td>{% if r.fn != on.fn %}{{ r.fn }}{% endif %}</td><td>{% if r.fn != on.fn %}{{ r.req }}{% endif %}</td>
+      <td>{% if r.mode != on.mode or r.fn != on.fn %}{{ r.mode }}{% endif %}</td><td>{% if r.mode != on.mode or r.fn != on.fn %}{{ r.eff }}{% endif %}</td>
+      <td class="s">{% if r.mode != on.mode or r.fn != on.fn %}{{ r.S if r.S is not none else '' }}{% endif %}</td><td class="c">{% if r.mode != on.mode or r.fn != on.fn %}{{ r.sinif }}{% endif %}</td>
+      <td>{{ r.cause }}</td><td>{{ r.prev }}</td><td class="o">{{ r.O if r.O is not none else '' }}</td><td>{{ r.det }}</td><td class="d">{{ r.D if r.D is not none else '' }}</td>
+      <td class="r">{{ r.rpn if r.rpn is not none else '' }}</td><td class="c ap-{{ r.ap }}">{{ r.ap }}</td>
+      <td>{{ r.act }}</td><td>{{ r.sorumlu }}</td><td>{{ r.alinan }}</td><td class="s">{{ r.S2 if r.S2 is not none else '' }}</td><td class="o">{{ r.O2 if r.O2 is not none else '' }}</td><td class="d">{{ r.D2 if r.D2 is not none else '' }}</td><td class="r">{{ r.rpn2 if r.rpn2 is not none else '' }}</td></tr>
+    {% set on.fn = r.fn %}{% set on.mode = r.mode %}
+  {% endfor %}
+  </tbody></table>
+<div class="altlik"><span>Sev.: Şiddet · Occur.: Oluşma · Detect.: Tespit · AP: Aksiyon Önceliği H = Yüksek · M = Orta · L = Düşük ({{ standartlar[std] }} matrisi) · RPN yalnız bilgi amaçlıdır</span><span>{{ u.musteri }} · {{ u.urun_adi }} · Çıktı: {{ bugun.strftime('%d.%m.%Y') }} (DYS)</span></div>
+</td></tr></tbody></table>
+</div>
+{% endfor %}
+</body></html>

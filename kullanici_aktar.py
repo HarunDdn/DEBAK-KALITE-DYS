@@ -96,7 +96,7 @@ def aktar(db, liste):
                     setattr(u, alan, k[alan][:100]); degisti.append(alan)
         (R["guncellenen"] if degisti else R["ayni"]).append(f"{u.ad_soyad}" + (f" ({', '.join(degisti)})" if degisti else ""))
     db.flush()
-    kullanicilar = db.query(User).filter(User.aktif.is_(True)).all()
+    kullanicilar = db.query(User).filter(User.aktif.__eq__(True)).all()
     by_ad = {anahtar(u.ad_soyad): u for u in kullanicilar}
     for d in db.query(DenetciYetkinlik).filter(DenetciYetkinlik.user_id.is_(None)).all():
         u = _bul(d.ad_soyad, by_ad)

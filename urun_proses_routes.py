@@ -133,7 +133,7 @@ def urun_proses_liste():
         teknik = []
         try:
             from models import TeknikResim
-            teknik = [(t.id, f"{t.musteri} — {t.urun_adi} ({t.resim_no})") for t in db.query(TeknikResim).filter(TeknikResim.aktif.isnot(False)).order_by(TeknikResim.musteri, TeknikResim.urun_adi).all()]
+            teknik = [(t.id, f"{t.musteri} — {t.urun_adi} ({t.resim_no})") for t in db.query(TeknikResim).filter((TeknikResim.aktif.is_(None) | TeknikResim.aktif.__eq__(True))).order_by(TeknikResim.musteri, TeknikResim.urun_adi).all()]
         except Exception:  # noqa: BLE001
             pass
         return render_template("urun_proses_liste.html", liste=L, adim_sayi=adim_sayi, olc=olc, musteriler=musteriler, musteri=musteri, q=request.args.get("q", ""),

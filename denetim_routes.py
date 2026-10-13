@@ -129,8 +129,8 @@ def audit_automation():
             "kalem": len(kalemler),
             "ic": len([i for i in kalemler if (i.kategori or "Süreç") in OT.IC_KATEGORILER]),
             "acilan": len([i for i in kalemler if i.audit_id]),
-            "oto": db.query(InternalAudit).filter(InternalAudit.otomatik.is_(True)).count(),
-            "denetci": db.query(DenetciYetkinlik).filter(DenetciYetkinlik.aktif.is_(True)).count(),
+            "oto": db.query(InternalAudit).filter(InternalAudit.otomatik.__eq__(True)).count(),
+            "denetci": db.query(DenetciYetkinlik).filter(DenetciYetkinlik.aktif.__eq__(True)).count(),
             "son": OT.ayar(db, "denetim_son_calisma") or "—",
         }
         # tür sekmeleri: sayaçlar + seçili türün plan kalemleri ve denetimleri

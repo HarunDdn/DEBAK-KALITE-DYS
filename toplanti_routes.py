@@ -9,6 +9,7 @@ Y01.4 F02 Günlük Toplantı Üretim & Bakım, F03 İç Paydaş Toplantı Tutana
   /toplantilar/madde/<id>/dof       maddeden DÖF açar ve bağlar
 Proje toplantıları / QRQC (Y01.4 F01) için DYS QRQC modülü kullanılır.
 """
+from sqlalchemy import case as _sa_case
 import json
 from datetime import date, datetime
 
@@ -122,7 +123,7 @@ def toplanti(tid=None):
             if TUR_BILGI[tur].get("surecler"):
                 ana = [p for p in db.query(Process).order_by(Process.kod).all() if "." not in (p.kod or "") and p.aktif is not False and len(p.kod) == 3]
                 t.maddeler = [ToplantiMaddesi(sira=i, konu=f"{p.kod} {p.ad}") for i, p in enumerate(ana, 1)]
-        kullanicilar = db.query(User).filter(User.aktif.is_(True)).order_by(User.ad_soyad).all()
+        kullanicilar = db.query(User).filter(User.aktif.__eq__(True)).order_by(User.ad_soyad).all()
         return render_template("toplanti.html", t=t, bilgi=TUR_BILGI[t.tur], turler=TOPLANTI_TURLERI, durumlar=TOPLANTI_MADDE_DURUMLARI,
                                kullanicilar=kullanicilar, yazabilir=_yazabilir(), bugun=date.today())
     finally:
@@ -161,7 +162,7 @@ def toplanti_aksiyonlar():
             q = q.filter(ToplantiMaddesi.durum == durum)
         if request.args.get("benim"):
             q = q.filter(ToplantiMaddesi.sorumlu_id == session.get("user_id"))
-        maddeler = [m for m in q.order_by(ToplantiMaddesi.termin.is_(None), ToplantiMaddesi.termin, ToplantiTutanagi.tarih.desc()).all() if m.karar or m.termin or m.sorumlu_id or m.sorumlu_metin]
+        maddeler = [m for m in q.order_by(_sa_case((ToplantiMaddesi.termin.is_(None), 1), else_=0), ToplantiMaddesi.termin, ToplantiTutanagi.tarih.desc()).all() if m.karar or m.termin or m.sorumlu_id or m.sorumlu_metin]
         return render_template("toplanti_aksiyonlar.html", maddeler=maddeler, durum=durum, durumlar=TOPLANTI_MADDE_DURUMLARI, bugun=date.today(), yazabilir=_yazabilir())
     finally:
         db.close()

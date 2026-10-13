@@ -8,15 +8,21 @@ Flask tabanlı web uygulaması
     python app.py
 """
 
+from sqlalchemy import case as _sa_case
 import os
 import re
 import json
 import secrets
 import hashlib
 import logging
+import mimetypes
 from logging.handlers import RotatingFileHandler
 from datetime import datetime, date, timedelta
 from functools import wraps
+
+# Windows kayıt defteri .js'i text/plain eşleyebilir; nosniff ile betik engellenir
+mimetypes.add_type("text/javascript", ".js")
+mimetypes.add_type("text/css", ".css")
 
 from flask import (
     Flask, render_template, request, redirect, url_for,
@@ -398,7 +404,8 @@ def _audit_record_hash(onceki_hash, kullanici_id, islem_tipi, document_id, detay
 
 
 def log_action(db, islem_tipi, document_id=None, detay=None):
-    tarih = datetime.now()
+    # Saniyeye yuvarla: MSSQL DATETIME milisaniyeyi yuvarlar, saklanan değer hash'tekiyle aynı kalmalı
+    tarih = datetime.now().replace(microsecond=0)
     kullanici_id = session.get("user_id")
     # Zincirin son halkasını al ve yeni kaydı ona bağla.
     son = db.query(AuditLog).order_by(AuditLog.id.desc()).first()
@@ -1402,6 +1409,10 @@ def document_new():
                 dosya_adi, dosya_yolu = save_document_file(file, doc.id, 0)
                 doc.dosya_adi = dosya_adi
                 doc.dosya_yolu = dosya_yolu
+                if not doc.icerik_json:                                  # 2026 — dosya içeriği DYS içinde okunur (hata vermez)
+                    import icerik_cikar as _ic
+                    doc.govde_html = None
+                    _ic.doldur(db, doc, dosya_yolu)
             elif doc.dokuman_tipi == "Prosedür" and doc.icerik_json:
                 # Referans antetli prosedür DOCX'ini otomatik üret
                 from procedure_docx import save_procedure_docx
@@ -1544,6 +1555,10 @@ def document_edit(doc_id):
                 dosya_adi, dosya_yolu = save_document_file(file, doc.id, doc.revizyon_no)
                 doc.dosya_adi = dosya_adi
                 doc.dosya_yolu = dosya_yolu
+                if not doc.icerik_json:                                  # 2026 — dosya içeriği DYS içinde okunur (hata vermez)
+                    import icerik_cikar as _ic
+                    doc.govde_html = None
+                    _ic.doldur(db, doc, dosya_yolu)
             elif doc.dokuman_tipi == "Prosedür" and doc.icerik_json:
                 from procedure_docx import save_procedure_docx
                 storage = document_storage_dir(doc.id, doc.revizyon_no)
@@ -1627,6 +1642,10 @@ def document_revise(doc_id):
                 dosya_adi, dosya_yolu = save_document_file(file, doc.id, doc.revizyon_no)
                 doc.dosya_adi = dosya_adi
                 doc.dosya_yolu = dosya_yolu
+                if not doc.icerik_json:                                  # 2026 — dosya içeriği DYS içinde okunur (hata vermez)
+                    import icerik_cikar as _ic
+                    doc.govde_html = None
+                    _ic.doldur(db, doc, dosya_yolu)
 
             # Create revision record (onaylanana kadar Bekliyor; ret halinde geri alınır)
             rev = DocumentRevision(
@@ -3717,7 +3736,7 @@ def training_list():
             query = query.filter(TrainingRecord.kullanici_id == kullanici)
         if tip:
             query = query.filter(TrainingRecord.egitim_tipi == tip)
-        kayitlar = query.order_by(TrainingRecord.egitim_tarihi.desc().nullslast()).all()
+        kayitlar = query.order_by(_sa_case((TrainingRecord.egitim_tarihi.is_(None), 1), else_=0), TrainingRecord.egitim_tarihi.desc()).all()
 
         # 60 gün içinde süresi dolacak sertifikalar
         bugun = date.today()
@@ -4438,6 +4457,7 @@ import fmea_sayfa_routes  # noqa: E402,F401  2026 — FMEA çalışma sayfaları
 import fmea_modul_routes  # noqa: E402,F401  2026 — FMEA Modülü (referans uygulama birebir; kayıt DYS veritabanında)
 import urun_proses_routes  # noqa: E402,F401  2026 — Ürün prosesi: FMEA + kontrol planı otomatik, yalnız ölçü girişi
 import ppap_dosya_routes  # noqa: E402,F401  2026 — PPAP dosyası: ürün ağacı → otomatik iş akışı + FMEA + kontrol planı + revizyon
+import valeo_cikti_routes  # noqa: E402,F401  2026 — Valeo formatı antetli çıktılar (Flow Chart, PFMEA, Control Plan)
 import dogrulama_routes  # noqa: E402,F401  2026 — D04 F03 Mastar & Cihaz Doğrulama
 import yeniden_islem_routes  # noqa: E402,F401  2026 — Yeniden İşlem Takip (D06 F06)
 

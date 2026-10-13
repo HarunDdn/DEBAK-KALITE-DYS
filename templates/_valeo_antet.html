@@ -1,0 +1,44 @@
+{# Valeo formatı çıktılar için ortak stil + Debak antet (logo | başlık | doküman bilgisi). Yazdırmada antet her sayfada tekrarlanır (thead). #}
+{% macro stil(yon) %}
+<style>
+  @page { size: A4 {{ yon }}; margin: 9mm 8mm 11mm 8mm; }
+  * { box-sizing: border-box; }
+  body { font-family: Arial, Helvetica, sans-serif; font-size: 8.5pt; color: #000; margin: 0; background: #e9ecf1; }
+  .araclar { padding: 10px 14px; background: #1f3864; color: #fff; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 13px; position: sticky; top: 0; z-index: 20; }
+  .araclar a, .araclar button { background: #fff; color: #1f3864; border: 0; padding: 6px 14px; font-size: 13px; cursor: pointer; text-decoration: none; border-radius: 4px; font-weight: 700; }
+  .araclar .gri { background: #cbd5e1; }
+  .kagit { background: #fff; margin: 14px auto; padding: 6mm; box-shadow: 0 2px 10px rgba(0,0,0,.25); width: {{ '210mm' if yon == 'portrait' else '297mm' }}; max-width: 100%; overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; }
+  .antet td { border: 1px solid #555; padding: 3px 6px; font-size: 8.5pt; vertical-align: middle; }
+  .antet .logo { width: 36mm; text-align: center; }
+  .antet .baslik { text-align: center; font-weight: bold; font-size: 13pt; }
+  .antet .baslik small { display: block; font-size: 8pt; font-weight: normal; margin-top: 2px; }
+  .antet .etk { background: #d9e2f3; width: 24mm; font-size: 7.5pt; }
+  .antet .deg { width: 40mm; font-weight: bold; font-size: 8.5pt; }
+  .v-t th, .v-t td { border: 1px solid #333; padding: 2px 4px; font-size: 7.5pt; vertical-align: top; text-align: left; word-break: break-word; }
+  .v-t th { background: #e5e7eb; text-align: center; font-size: 7.2pt; vertical-align: middle; }
+  .v-t tr { page-break-inside: avoid; }
+  .c { text-align: center !important; }
+  .v-h td { border: 1px solid #333; padding: 2px 6px; font-size: 8pt; }
+  .v-h .k { background: #f1f5f9; font-weight: bold; width: 26mm; }
+  .sayfa-sonu { page-break-after: always; }
+  .ap-H { background: #fecaca; font-weight: bold; } .ap-M { background: #fde68a; font-weight: bold; } .ap-L { background: #bbf7d0; font-weight: bold; }
+  .altlik { margin-top: 3mm; font-size: 7pt; color: #444; display: flex; justify-content: space-between; }
+  @media print { body { background: #fff; } .araclar { display: none; } .kagit { margin: 0; padding: 0; box-shadow: none; width: auto; overflow: visible; } .sayfa-sonu:last-child { page-break-after: auto; } }
+</style>
+{% endmacro %}
+
+{% macro antet(baslik, alt, kod_1, kod_2, kod_3) %}
+<table class="antet"><tr>
+  <td class="logo" rowspan="3"><img src="{{ url_for('static', filename='branding/debak-logo.png') }}" alt="debak" style="max-width:32mm;max-height:13mm;"></td>
+  <td class="baslik" rowspan="3">{{ baslik }}{% if alt %}<small>{{ alt }}</small>{% endif %}</td>
+  <td class="etk">{{ kod_1[0] }}</td><td class="deg">{{ kod_1[1] }}</td></tr>
+  <tr><td class="etk">{{ kod_2[0] }}</td><td class="deg">{{ kod_2[1] }}</td></tr>
+  <tr><td class="etk">{{ kod_3[0] }}</td><td class="deg">{{ kod_3[1] }}</td></tr></table>
+{% endmacro %}
+
+{% macro araclar(u, ad, excel_url, yon_notu) %}
+<div class="araclar"><b>{{ ad }}</b><span style="opacity:.8">{{ u.urun_adi }}</span>
+  <button onclick="window.print()">🖨️ Yazdır / PDF</button><a href="{{ excel_url }}">📊 Excel</a>
+  <a class="gri" href="{{ url_for('urun_ppap', uid=u.id) }}">⬅️ PPAP dosyası</a><span style="opacity:.75;font-size:12px;">{{ yon_notu }}</span></div>
+{% endmacro %}

@@ -217,7 +217,20 @@ def render_print_pdf(file_path: str, spec: WatermarkSpec, output_dir: str, *, ti
             logger.exception("PDF filigranı başarısız, kapak üretiliyor")
             return _stamp_pdf(spec, output_dir, title=title, source_name=source_name)
 
-    converted = _office_to_pdf(file_path, output_dir, ext)
+    # Office dosyası: önce önizlemenin önbelleğindeki PDF'i kullan (bir kez üretilir, tekrar kullanılır;
+    # önbellek dosyası SİLİNMEZ). Yoksa anlık dönüştür (üretilen geçici PDF silinir).
+    onbellekten = False
+    converted = None
+    try:
+        import onizleme_pdf
+        if onizleme_pdf.uzanti(file_path) in onizleme_pdf.OFFICE_UZANTILARI:
+            cache = onizleme_pdf.pdf_onizleme(file_path)
+            if cache and os.path.isfile(cache):
+                converted, onbellekten = cache, True
+    except Exception:  # noqa: BLE001
+        logger.exception("Önizleme önbelleğinden PDF alınamadı: %s", file_path)
+    if not converted:
+        converted = _office_to_pdf(file_path, output_dir, ext)
     if converted:
         try:
             stamped = _watermark_pdf(converted, spec, pdf_out)
@@ -225,10 +238,11 @@ def render_print_pdf(file_path: str, spec: WatermarkSpec, output_dir: str, *, ti
         except Exception:
             logger.exception("Dönüştürülen PDF filigranlanamadı")
         finally:
-            try:
-                os.remove(converted)
-            except OSError:
-                pass
+            if not onbellekten:   # önbellek dosyasına dokunma
+                try:
+                    os.remove(converted)
+                except OSError:
+                    pass
 
     native = apply_issued_copy(file_path, spec, output_dir, ext=ext)
     if native and native.lower().endswith(".pdf"):
@@ -242,9 +256,9 @@ def render_print_pdf(file_path: str, spec: WatermarkSpec, output_dir: str, *, ti
 
 
 def _office_to_pdf(file_path: str, output_dir: str, ext: str) -> str | None:
-    """Excel/Word COM ile PDF (Windows + Office). Yoksa None."""
+    """Office → PDF: önce Office COM (Windows+Office), olmazsa LibreOffice headless. Yoksa None."""
     ext = (ext or "").lower().lstrip(".")
-    if ext not in {"xls", "xlsx", "xlsm", "doc", "docx"}:
+    if ext not in {"xls", "xlsx", "xlsm", "doc", "docx", "rtf", "odt", "ods", "ppt", "pptx"}:
         return None
     local = os.path.join(output_dir, f"src_{uuid.uuid4().hex}.{ext}")
     pdf_path = os.path.join(output_dir, f"conv_{uuid.uuid4().hex}.pdf")
@@ -256,10 +270,20 @@ def _office_to_pdf(file_path: str, output_dir: str, ext: str) -> str | None:
     try:
         if ext in {"xls", "xlsx", "xlsm"}:
             ok = _excel_to_pdf(local, pdf_path)
-        else:
+        elif ext in {"doc", "docx"}:
             ok = _word_to_pdf(local, pdf_path)
+        else:
+            ok = False
         if ok and os.path.isfile(pdf_path) and os.path.getsize(pdf_path) > 0:
             return pdf_path
+        # Office (COM) yoksa / üretemediyse LibreOffice headless (sunucuda Office gerekmez)
+        try:
+            import onizleme_pdf
+            lo = onizleme_pdf._soffice_to_pdf(file_path, output_dir)
+            if lo and os.path.isfile(lo) and os.path.getsize(lo) > 0:
+                return lo
+        except Exception:  # noqa: BLE001
+            logger.exception("LibreOffice ile çıktı PDF üretilemedi: %s", file_path)
         return None
     finally:
         try:

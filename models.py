@@ -18,7 +18,7 @@ from datetime import datetime, date
 
 from sqlalchemy import (
     Boolean, Column, Date, DateTime, Float,
-    ForeignKey, Integer, String, Text, Unicode, JSON, UniqueConstraint,
+    ForeignKey, Integer, LargeBinary, String, Text, Unicode, JSON, UniqueConstraint,
     create_engine, event,
 )
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker, backref
@@ -472,6 +472,8 @@ class Document(Base):
 
     # Tip bazlı şablon içeriği (JSON string: {"bolum_anahtari": "metin"})
     icerik_json = Column(Text, nullable=True)
+    govde_html = Column(Text, nullable=True)                      # 2026 — dosyadan çıkarılan okunur içerik (HTML; icerik_cikar.py)
+    govde_not = Column(Unicode(300), nullable=True)               # çıkarma notu (kesildi / okunamadı …)
 
     olusturma_tarihi = Column(DateTime, default=datetime.now)
     guncelleme_tarihi = Column(DateTime, default=datetime.now, onupdate=datetime.now)
@@ -1569,7 +1571,7 @@ class KalibrasyonSertifika(Base):
 
     ekipman = relationship("CalibrationEquipment", back_populates="sertifikalar")
     yukleyen = relationship("User")
-
+    depo_id = Column(Integer, nullable=True)                            # dosya_depo.id (2026) — dosya veritabanında da saklanır
 
 class EnjeksiyonUrun(Base):
     """M03 F08 Ürün Enjeksiyon Parametreleri — parametre kartı olan ürün (2026, yeni tablo)."""
@@ -2729,7 +2731,7 @@ class KaliteGorsel(Base):
     pdfte = Column(Boolean, nullable=True, default=True)                 # rapora eklensin mi
     yukleyen_id = Column(Integer, nullable=True)
     olusturma_tarihi = Column(DateTime, default=datetime.now)
-
+    depo_id = Column(Integer, nullable=True)                            # dosya_depo.id
 
 class BakimEkipman(Base):
     """2026 — D03 bakım ekipmanı (makine, yardımcı ekipman, kalıp). Tür + marka, Bakım Formu ekranında uygun şablonları belirler."""
@@ -2840,6 +2842,7 @@ class UrunProsesi(Base):
     aktif = Column(Boolean, nullable=True, default=True)
     olusturan_id = Column(Integer, nullable=True)
     olusturma_tarihi = Column(DateTime, default=datetime.now)
+    valeo_json = Column(Text, nullable=True)                           # Valeo formatı başlıkları: {akis:{no,tarih,rev,baslik}, fmea:{…}, cp:{no,iletisim,ekip,tarihler,onaylar,reaksiyon_tablo}}
 
 
 class UrunProsesAdimi(Base):
@@ -2849,6 +2852,7 @@ class UrunProsesAdimi(Base):
     adim_tanim_id = Column(Integer, nullable=False)
     sira = Column(Integer, nullable=False, default=0)
     dugum_id = Column(Integer, nullable=True)                           # ürün ağacı düğümü (boşsa ürünün kendisi)
+    valeo_json = Column(Text, nullable=True)                           # Valeo akış şeması: {kod, etiket, kutular:[{metin,sekil}], notlar:[…]} ve FMEA sayfa başlığı {fmea_baslik:{…}}
 
 
 class UrunAgacDugumu(Base):
@@ -2898,6 +2902,7 @@ class ProsesFmeaSatiri(Base):
     act = Column(Text, nullable=True)
     O2 = Column(Integer, nullable=True)
     D2 = Column(Integer, nullable=True)
+    valeo_json = Column(Text, nullable=True)                           # Valeo ham satır: {req, sinif, S, O, D, rpn, sorumlu, alinan, S2, O2, D2, rpn2} (yazdırmada, satır değişmemişse kullanılır)
 
 
 class ProsesKpSatiri(Base):
@@ -2922,6 +2927,7 @@ class ProsesKpSatiri(Base):
     yontem = Column(Unicode(300), nullable=True)
     reaksiyon = Column(Unicode(400), nullable=True)
     fmea_satir_id = Column(Integer, nullable=True)                      # ilgili FMEA satırı
+    valeo_json = Column(Text, nullable=True)                           # Valeo ham satır: {surec_no, surec_ad, ekipman, no, urun, proses, ozel, sartname, teknik, numune, siklik, kontrol, kayit, reaksiyon}
 
 
 class OlcumKaydi(Base):
@@ -2981,6 +2987,7 @@ class TeknikResimRevizyon(Base):
     kaynak = Column(Unicode(60), nullable=True)                          # 'Toplu aktarım …' — sistem öncesi resim
     yukleyen_id = Column(Integer, nullable=True)
     olusturma_tarihi = Column(DateTime, default=datetime.now)
+    depo_id = Column(Integer, nullable=True)                            # dosya_depo.id (ana resim dosyası)
 
 
 TR_EK_TURLERI = ("Sapma onayı (deviation)", "3D model (STEP)", "Görsel kopya", "Geçiş resmi", "Spesifikasyon", "Mastar resmi", "Diğer")
@@ -2988,7 +2995,6 @@ TR_EK_TURLERI = ("Sapma onayı (deviation)", "3D model (STEP)", "Görsel kopya",
 
 EK_KANIT_TIPLERI = ("Ölçüm Raporu", "Kontrol Planı", "PFMEA", "Proses Akış Şeması", "SPC / MSA", "İş / Kontrol Talimatı", "Kayıt / Form",
                     "Fotoğraf", "Etiket / Ambalaj", "Malzeme Sertifikası", "Ürün Uygunluk Raporu", "Diğer")
-
 
 class AuditEkKanit(Base):
     """2026 — denetime (özellikle proses / ürün denetimi) eklenen ek kanıt: yüklenen dosya ya da DYS'deki bir doküman bağlantısı.
@@ -3083,6 +3089,7 @@ class DogrulamaGorsel(Base):
     tur = Column(Unicode(12), nullable=False, default="yontem")         # cihaz / yontem
     dosya_adi = Column(Unicode(200), nullable=True)
     dosya_yolu = Column(Unicode(500), nullable=True)
+    depo_id = Column(Integer, nullable=True)                            # dosya_depo.id
 
 class YenidenIslemKaydi(Base):
     """2026 — Uygun olmayan ürün & yeniden işlem takip kaydı (eski D06 F06 Excel listesinin yerine)."""
@@ -3139,9 +3146,23 @@ class YenidenIslemDF(Base):
     gerceklesen_tarih = Column(Date, nullable=True)
     kaynak = Column(Unicode(100), nullable=True)
 
+class DosyaDepo(Base):
+    """2026 — yüklenen dosyaların veritabanı kopyası (SHA-256'ya göre tekil). Sertifika, teknik resim, görsel dosyalarının paylaşım olmadan da erişilebilmesi için."""
+    __tablename__ = "dosya_depo"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    sha256 = Column(String(64), nullable=False, unique=True, index=True)
+    ad = Column(Unicode(200), nullable=True)
+    mime = Column(String(100), nullable=True)
+    boyut = Column(Integer, nullable=False, default=0)
+    icerik = Column(LargeBinary, nullable=False)
+    olusturma = Column(DateTime, default=datetime.now)
+
 
 
 _DENETIM_KOLONLARI = [  # 2026 iç denetim otomasyonu — tablo, kolon, SQLite tipi
+    ("urun_prosesleri", "valeo_json", "TEXT"), ("urun_proses_adimlari", "valeo_json", "TEXT"), ("proses_fmea_satirlari", "valeo_json", "TEXT"), ("proses_kp_satirlari", "valeo_json", "TEXT"),
+    ("kalibrasyon_sertifikalari", "depo_id", "INTEGER"), ("teknik_resim_revizyonlari", "depo_id", "INTEGER"), ("kalite_gorselleri", "depo_id", "INTEGER"), ("dogrulama_gorselleri", "depo_id", "INTEGER"),
+    ("documents", "govde_html", "TEXT"), ("documents", "govde_not", "VARCHAR(300)"),
     ("urun_proses_adimlari", "dugum_id", "INTEGER"), ("urun_prosesleri", "fmea_standart", "VARCHAR(8)"), ("proses_fmea_satirlari", "standart", "VARCHAR(8)"),
     ("internal_audits", "checklist_id", "INTEGER"), ("internal_audits", "ekip_json", "TEXT"), ("internal_audits", "otomatik", "BOOLEAN"),
     ("audit_findings", "answer_id", "INTEGER"),

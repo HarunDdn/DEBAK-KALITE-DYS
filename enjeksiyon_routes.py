@@ -80,7 +80,7 @@ def enjeksiyon_parametreleri():
                   "warning" if disi else "success")
             return redirect(url_for("enjeksiyon_parametreleri", urun=u.id))
 
-        urunler = db.query(EnjeksiyonUrun).filter(EnjeksiyonUrun.aktif.is_(True)).order_by(EnjeksiyonUrun.musteri, EnjeksiyonUrun.urun_adi).all()
+        urunler = db.query(EnjeksiyonUrun).filter(EnjeksiyonUrun.aktif.__eq__(True)).order_by(EnjeksiyonUrun.musteri, EnjeksiyonUrun.urun_adi).all()
         musteriler = sorted({u.musteri or "—" for u in urunler})
         secili = db.get(EnjeksiyonUrun, request.args.get("urun", type=int)) if request.args.get("urun") else None
         bekleyen = db.query(EnjeksiyonParametreKaydi).filter(EnjeksiyonParametreKaydi.durum == "Onayda").count()
